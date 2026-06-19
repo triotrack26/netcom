@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PC Diagnostic Tool</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+
+    <div class="header">
+        <h1>🛠 PC Diagnostic Tool</h1>
+        <p>Select System Type</p>
+    </div>
+
+    <div class="card-container">
+
+        <div class="card" onclick="selectSystem('Laptop')">
+            <h2>💻 Laptop</h2>
+            <p>Battery, Camera, Touchpad, Ports</p>
+        </div>
+
+        <div class="card" onclick="selectSystem('Desktop')">
+            <h2>🖥 Desktop</h2>
+            <p>Monitor, Mouse, Keyboard, Ports</p>
+        </div>
+
+        <div class="card" onclick="selectSystem('Server')">
+            <h2>🗄 Server</h2>
+            <p>CPU, RAM, Storage, Network</p>
+        </div>
+
+    </div>
+
+</div>
+
+<script src="app.js"></script>
+
+</body>
+</html>
