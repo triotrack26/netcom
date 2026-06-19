@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hardware Diagnostic Tool</title>
+    <title>Device Checker</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
@@ -14,14 +14,14 @@
                         dark: '#09090b',
                         darker: '#000000',
                         panel: '#18181b',
-                        primary: '#06b6d4', // Cyan for a tech feel
+                        primary: '#06b6d4', 
                         success: '#10b981',
                         danger: '#ef4444',
                         warning: '#f59e0b',
-                        terminal: '#22c55e'
                     },
                     fontFamily: {
                         mono: ['Consolas', 'Monaco', 'Courier New', 'monospace'],
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
                     }
                 }
             }
@@ -32,135 +32,103 @@
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         
-        .fade-in { animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.2s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* Terminal Typing Effect */
-        .typing-line { border-right: 2px solid #22c55e; white-space: nowrap; overflow: hidden; animation: typing 1s steps(40, end), blink-caret .75s step-end infinite; }
-        @keyframes typing { from { width: 0 } to { width: 100% } }
-        @keyframes blink-caret { from, to { border-color: transparent } 50% { border-color: #22c55e; } }
-
-        /* Full Keyboard Styles */
-        .kbd-row { display: flex; justify-content: center; gap: 6px; margin-bottom: 6px; }
-        .key { transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 0 #27272a; border: 1px solid #3f3f46; border-radius: 6px; background-color: #18181b; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; color: #a1a1aa; cursor: pointer; }
-        .key.active { background-color: #06b6d4; color: white; transform: translateY(4px); box-shadow: 0 0 0 #27272a; border-color: #06b6d4; }
-        .key.tested { background-color: #10b981; color: white; box-shadow: 0 4px 0 #047857; border-color: #059669; }
-        .key.tested.active { transform: translateY(4px); box-shadow: 0 0 0 #047857; }
+        /* Keyboard Styles */
+        .kbd-row { display: flex; justify-content: center; gap: 4px; margin-bottom: 4px; }
+        .key { transition: all 0.1s; box-shadow: 0 3px 0 #27272a; border: 1px solid #3f3f46; border-radius: 4px; background-color: #18181b; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; color: #a1a1aa; cursor: pointer; }
+        .key.active { background-color: #06b6d4; color: white; transform: translateY(3px); box-shadow: 0 0 0 #27272a; border-color: #06b6d4; }
+        .key.tested { background-color: #10b981; color: white; box-shadow: 0 3px 0 #047857; border-color: #059669; }
+        .key.tested.active { transform: translateY(3px); box-shadow: 0 0 0 #047857; }
         
-        /* Key Sizing */
-        .k-std { width: 45px; height: 45px; }
-        .k-sm { width: 40px; height: 35px; font-size: 0.65rem; }
-        .k-w1 { width: 65px; height: 45px; } /* Tab */
-        .k-w2 { width: 85px; height: 45px; } /* Caps */
-        .k-w3 { width: 105px; height: 45px; } /* Shift L */
-        .k-w4 { width: 125px; height: 45px; } /* Enter / Shift R */
-        .k-space { width: 300px; height: 45px; }
+        .k-std { width: 42px; height: 42px; }
+        .k-sm { width: 38px; height: 32px; font-size: 0.65rem; }
+        .k-w1 { width: 65px; height: 42px; } /* Tab */
+        .k-w2 { width: 80px; height: 42px; } /* Caps */
+        .k-w3 { width: 100px; height: 42px; } /* Shift L */
+        .k-w4 { width: 110px; height: 42px; } /* Enter / Shift R */
+        .k-space { width: 260px; height: 42px; }
+
+        /* Battery Grid Table (BatteryInfoView style) */
+        .data-grid { width: 100%; border-collapse: collapse; font-family: 'Consolas', monospace; font-size: 0.85rem; }
+        .data-grid th { text-align: left; padding: 8px 12px; background-color: #27272a; border: 1px solid #3f3f46; color: #d4d4d8; font-weight: normal; }
+        .data-grid td { padding: 8px 12px; border: 1px solid #3f3f46; color: #fff; }
+        .data-grid tr:nth-child(even) { background-color: #18181b; }
+        .data-grid tr:nth-child(odd) { background-color: #09090b; }
+        .data-grid tr:hover { background-color: #3f3f46; }
 
         /* Port Indicators */
         .port-light { transition: all 0.3s ease; }
-        .port-light.on { background-color: rgba(16, 185, 129, 0.2); border-color: #10b981; color: #10b981; box-shadow: 0 0 15px rgba(16, 185, 129, 0.5); }
+        .port-light.on { background-color: rgba(16, 185, 129, 0.15); border-color: #10b981; color: #10b981; box-shadow: 0 0 20px rgba(16, 185, 129, 0.4) inset; }
 
-        /* Fullscreen Display Test */
-        #display-test-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; cursor: pointer; }
-
-        /* Touch Test Canvas */
+        /* Touchpad Canvas */
         #touch-canvas { touch-action: none; background-color: #09090b; border: 2px dashed #3f3f46; border-radius: 0.5rem; width: 100%; height: 400px; cursor: crosshair; }
+        
+        /* Mic Oscilloscope */
+        #mic-canvas { width: 100%; height: 250px; background-color: #000; border: 1px solid #27272a; border-radius: 8px; }
     </style>
 </head>
 <body class="h-screen w-screen flex">
 
-    <nav id="sidebar" class="w-64 bg-dark border-r border-zinc-800 flex flex-col h-full z-10">
-        <div class="p-6 border-b border-zinc-800 flex items-center gap-3 cursor-pointer group" onclick="app.navigate('home')">
-            <i class="fa-solid fa-microchip text-primary text-3xl group-hover:rotate-12 transition-transform"></i>
+    <nav id="sidebar" class="w-64 bg-dark border-r border-zinc-800 flex flex-col h-full z-10 shadow-xl">
+        <div class="p-6 border-b border-zinc-800 flex items-center gap-3">
+            <i class="fa-solid fa-microchip text-primary text-3xl"></i>
             <div>
-                <h1 class="text-xl font-bold tracking-wider leading-tight">DIAGNOSTIC</h1>
-                <h1 class="text-sm font-semibold tracking-widest text-primary">ENGINE OS</h1>
+                <h1 class="text-xl font-bold tracking-wider leading-tight text-white">DEVICE</h1>
+                <h1 class="text-sm font-semibold tracking-widest text-primary">CHECKER</h1>
             </div>
         </div>
-        <div class="flex-1 overflow-y-auto py-6">
-            <ul class="space-y-2 px-4" id="nav-menu">
-                <li><button onclick="app.navigate('home')" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-white transition-all font-medium tracking-wide" data-nav="home"><i class="fa-solid fa-layer-group w-5"></i> Select Device</button></li>
-                <li class="pt-6 pb-2 px-4 text-xs font-bold text-zinc-600 uppercase tracking-widest">Test Environments</li>
-                <li><button onclick="app.navigate('laptop')" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-white transition-all font-medium tracking-wide" data-nav="laptop"><i class="fa-solid fa-laptop w-5"></i> Laptop Suite</button></li>
-                <li><button onclick="app.navigate('desktop')" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-white transition-all font-medium tracking-wide" data-nav="desktop"><i class="fa-solid fa-desktop w-5"></i> Desktop Suite</button></li>
-                <li><button onclick="app.navigate('server')" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-white transition-all font-medium tracking-wide" data-nav="server"><i class="fa-solid fa-server w-5"></i> Server Suite</button></li>
+        <div class="flex-1 overflow-y-auto py-4">
+            <ul class="space-y-1 px-3" id="nav-menu">
+                <li><button onclick="app.navigate('battery')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-white transition-all font-medium tracking-wide" data-nav="battery"><i class="fa-solid fa-car-battery w-5 text-center"></i> Battery</button></li>
+                <li><button onclick="app.navigate('keyboard')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-white transition-all font-medium tracking-wide" data-nav="keyboard"><i class="fa-solid fa-keyboard w-5 text-center"></i> Keyboard</button></li>
+                <li><button onclick="app.navigate('touchpad')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-white transition-all font-medium tracking-wide" data-nav="touchpad"><i class="fa-solid fa-hand-pointer w-5 text-center"></i> Touch Pad</button></li>
+                <li><button onclick="app.navigate('mic')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-white transition-all font-medium tracking-wide" data-nav="mic"><i class="fa-solid fa-microphone-lines w-5 text-center"></i> Mic Test</button></li>
+                <li><button onclick="app.navigate('voice')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-white transition-all font-medium tracking-wide" data-nav="voice"><i class="fa-solid fa-voicemail w-5 text-center"></i> Voice Record</button></li>
+                <li><button onclick="app.navigate('camera')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-white transition-all font-medium tracking-wide" data-nav="camera"><i class="fa-solid fa-camera w-5 text-center"></i> Camera</button></li>
+                <li><button onclick="app.navigate('ports')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-white transition-all font-medium tracking-wide" data-nav="ports"><i class="fa-solid fa-hubspot w-5 text-center"></i> Port Checker</button></li>
             </ul>
         </div>
         <div class="p-4 bg-zinc-900 border-t border-zinc-800 flex items-center justify-between">
             <div class="flex items-center gap-2">
                 <div class="w-2 h-2 rounded-full bg-success animate-pulse"></div>
-                <span class="text-xs font-bold text-zinc-400 tracking-wider">SYSTEM ACTIVE</span>
+                <span class="text-xs font-bold text-zinc-400 tracking-wider">ENGINEER MODE</span>
             </div>
-            <i class="fa-solid fa-wifi text-zinc-500 text-xs" id="wifi-icon"></i>
         </div>
     </nav>
 
     <main class="flex-1 flex flex-col h-full bg-darker relative overflow-hidden">
-        <!-- Topbar -->
-        <header id="topbar" class="h-16 bg-dark border-b border-zinc-800 flex items-center justify-between px-8 z-10 shadow-lg">
+        <header id="topbar" class="h-16 bg-dark border-b border-zinc-800 flex items-center justify-between px-8 z-10 shadow-md">
             <h2 id="page-title" class="text-lg font-bold text-zinc-100 uppercase tracking-wider flex items-center gap-3">
-                Select Hardware Profile
+                Select a Test
             </h2>
-            <div class="flex items-center gap-6">
-                <span id="system-clock" class="text-sm font-mono font-bold text-primary bg-primary/10 px-3 py-1 rounded border border-primary/20">00:00:00</span>
+            <div class="flex items-center gap-4">
+                <span id="system-clock" class="text-sm font-mono font-bold text-zinc-400">00:00:00</span>
             </div>
         </header>
 
-        <!-- Dynamic Content Area -->
-        <div id="main-content" class="flex-1 overflow-y-auto p-8 scrollbar-hide relative">
-            <!-- Content gets injected here by JS -->
+        <div id="main-content" class="flex-1 overflow-y-auto p-6 scrollbar-hide relative bg-zinc-950">
+            <!-- Test Interfaces Injected Here -->
         </div>
     </main>
 
-    <!-- Toast Notification Container -->
+    <!-- Toast Container -->
     <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-3 pointer-events-none"></div>
-
-    <!-- Fullscreen Display Test Overlay -->
-    <div id="display-test-overlay"></div>
 
     <script>
         const app = {
             state: {
-                currentView: 'home',
-                activeStreams: [], // Holds camera/mic tracks for cleanup
+                currentTest: null,
+                activeStreams: [], 
                 audioRecorder: null,
                 audioChunks: [],
-                portsConnected: 0 // Track connected virtual ports
-            },
-
-            // Test Definitions per device
-            tests: {
-                laptop: [
-                    { id: 'sysinfo', name: 'Auto System Scan', icon: 'fa-radar-centric' },
-                    { id: 'keyboard', name: 'Keyboard Intercept', icon: 'fa-keyboard' },
-                    { id: 'touchpad', name: 'Trackpad Test', icon: 'fa-mouse-pointer' },
-                    { id: 'touchscreen', name: 'Digitizer Touch', icon: 'fa-hand-pointer' },
-                    { id: 'battery', name: 'Battery Analyzer', icon: 'fa-car-battery' },
-                    { id: 'display', name: 'Screen Pixel Test', icon: 'fa-display' },
-                    { id: 'ports', name: 'Live Port Listener', icon: 'fa-hubspot' },
-                    { id: 'camera', name: 'Webcam Sensor', icon: 'fa-camera' },
-                    { id: 'mic', name: 'Mic Visualizer', icon: 'fa-microphone-lines' },
-                    { id: 'voice', name: 'Voice Recorder', icon: 'fa-voicemail' },
-                    { id: 'speaker', name: 'Audio Channels', icon: 'fa-volume-high' }
-                ],
-                desktop: [
-                    { id: 'sysinfo', name: 'Auto System Scan', icon: 'fa-radar-centric' },
-                    { id: 'keyboard', name: 'Keyboard Intercept', icon: 'fa-keyboard' },
-                    { id: 'mouse', name: 'Mouse Tracker', icon: 'fa-mouse' },
-                    { id: 'monitor', name: 'Monitor Pixel Test', icon: 'fa-desktop' },
-                    { id: 'ports', name: 'Live Port Listener', icon: 'fa-hubspot' },
-                    { id: 'mic', name: 'Mic Visualizer', icon: 'fa-microphone-lines' },
-                    { id: 'voice', name: 'Voice Recorder', icon: 'fa-voicemail' },
-                    { id: 'speaker', name: 'Audio Channels', icon: 'fa-volume-high' }
-                ],
-                server: [
-                    { id: 'sysinfo', name: 'Auto System Scan', icon: 'fa-radar-centric' },
-                    { id: 'network', name: 'Network Latency', icon: 'fa-network-wired' }
-                ]
+                animationFrameId: null,
+                cachedDevices: { audio: 0, video: 0 } // For port checking diffs
             },
 
             utils: {
-                showToast: (msg, type = 'info') => {
+                showToast: (title, msg, type = 'info') => {
                     const container = document.getElementById('toast-container');
                     const toast = document.createElement('div');
                     
@@ -168,552 +136,330 @@
                     if(type === 'success') { bg = 'bg-emerald-950'; border = 'border-emerald-500'; icon = 'fa-check-circle'; text = 'text-emerald-400'; }
                     if(type === 'error') { bg = 'bg-red-950'; border = 'border-red-500'; icon = 'fa-triangle-exclamation'; text = 'text-red-400'; }
                     
-                    toast.className = `${bg} ${border} border px-6 py-4 rounded-lg shadow-2xl fade-in flex items-center gap-4 pointer-events-auto`;
-                    toast.innerHTML = `<i class="fa-solid ${icon} ${text} text-2xl"></i> <span class="font-bold text-white tracking-wide">${msg}</span>`;
+                    toast.className = `${bg} ${border} border px-6 py-4 rounded-lg shadow-2xl fade-in flex items-center gap-4 pointer-events-auto min-w-[300px]`;
+                    toast.innerHTML = `
+                        <i class="fa-solid ${icon} ${text} text-3xl"></i> 
+                        <div class="flex flex-col">
+                            <span class="font-bold text-white tracking-wide">${title}</span>
+                            <span class="text-sm text-zinc-400 font-mono mt-1">${msg}</span>
+                        </div>
+                    `;
                     container.appendChild(toast);
                     
+                    app.hardware.playTone(type === 'success' ? 880 : 440, 'both', 'sine', 0.1);
+                    if(type === 'success') setTimeout(() => app.hardware.playTone(1100, 'both', 'sine', 0.15), 150);
+
                     setTimeout(() => {
                         toast.style.opacity = '0';
                         toast.style.transition = 'opacity 0.3s';
                         setTimeout(() => toast.remove(), 300);
-                    }, 4000);
+                    }, 5000);
                 },
-                stopActiveHardware: () => {
-                    // Stop Camera/Mic
+                
+                stopHardware: () => {
+                    // Stop Camera/Mic Streams
                     app.state.activeStreams.forEach(stream => stream.getTracks().forEach(track => track.stop()));
                     app.state.activeStreams = [];
                     // Stop Recorders
                     if(app.state.audioRecorder && app.state.audioRecorder.state !== 'inactive') app.state.audioRecorder.stop();
-                    // Clean global listeners for tests
-                    if(window.appKeyboardListener) {
-                        window.removeEventListener('keydown', window.appKeyboardListener, true);
-                        window.removeEventListener('keyup', window.appKeyboardUpListener, true);
-                        window.appKeyboardListener = null;
-                    }
-                    if(window.usbListener) navigator.usb?.removeEventListener('connect', window.usbListener);
-                    if(window.mediaListener) navigator.mediaDevices?.removeEventListener('devicechange', window.mediaListener);
+                    // Stop Animation Loops (Oscilloscope)
+                    if(app.state.animationFrameId) cancelAnimationFrame(app.state.animationFrameId);
+                    
+                    // Clean global listeners
+                    if(window.kbdDownListener) { window.removeEventListener('keydown', window.kbdDownListener, true); window.kbdDownListener = null; }
+                    if(window.kbdUpListener) { window.removeEventListener('keyup', window.kbdUpListener, true); window.kbdUpListener = null; }
+                    if(window.usbListener) { navigator.usb?.removeEventListener('connect', window.usbListener); window.usbListener = null; }
+                    if(window.mediaListener) { navigator.mediaDevices?.removeEventListener('devicechange', window.mediaListener); window.mediaListener = null; }
+                    if(window.screenListener) { window.removeEventListener('resize', window.screenListener); window.screenListener = null; }
                 }
             },
 
-            navigate: (viewName, params = {}) => {
-                app.utils.stopActiveHardware();
-                app.state.currentView = viewName;
+            navigate: (testId) => {
+                app.utils.stopHardware();
+                app.state.currentTest = testId;
                 
-                // Sidebar highlighting
-                document.querySelectorAll('#nav-menu button').forEach(btn => {
+                // Update Sidebar Styles
+                document.querySelectorAll('.nav-btn').forEach(btn => {
                     btn.classList.remove('bg-primary/10', 'text-white', 'border-l-4', 'border-primary');
                     btn.classList.add('text-zinc-400');
-                    if(btn.dataset.nav === viewName.split('-')[0]) {
+                    if(btn.dataset.nav === testId) {
                         btn.classList.remove('text-zinc-400');
                         btn.classList.add('bg-primary/10', 'text-white', 'border-l-4', 'border-primary');
                     }
                 });
 
+                // Update Topbar
+                const testTitles = {
+                    'battery': '<i class="fa-solid fa-car-battery text-primary"></i> Battery Health Info',
+                    'keyboard': '<i class="fa-solid fa-keyboard text-primary"></i> Keyboard Intercept',
+                    'touchpad': '<i class="fa-solid fa-hand-pointer text-primary"></i> Touch Pad & Mouse',
+                    'mic': '<i class="fa-solid fa-microphone-lines text-primary"></i> Online Mic Test',
+                    'voice': '<i class="fa-solid fa-voicemail text-primary"></i> Voice Recorder',
+                    'camera': '<i class="fa-solid fa-camera text-primary"></i> Camera Feed',
+                    'ports': '<i class="fa-solid fa-hubspot text-primary"></i> Port Checker (Live)'
+                };
+                document.getElementById('page-title').innerHTML = testTitles[testId] || 'Device Checker';
+
+                // Render Content
                 const contentDiv = document.getElementById('main-content');
-                
-                if(viewName === 'home') app.ui.renderHome();
-                else if(viewName === 'laptop' || viewName === 'desktop' || viewName === 'server') app.ui.renderDeviceMenu(viewName);
-                else if(viewName === 'test') app.ui.renderActiveTest(params.device, params.testId);
+                contentDiv.innerHTML = `<div class="fade-in max-w-5xl mx-auto h-full pb-10">${app.templates[testId]()}</div>`;
+
+                // Initialize Test Logic
+                setTimeout(() => {
+                    if (app.hardware[testId]) app.hardware[testId]();
+                }, 50);
             },
 
-            ui: {
-                renderHome: () => {
-                    document.getElementById('page-title').innerHTML = `<i class="fa-solid fa-layer-group text-primary"></i> Select Hardware Profile`;
-                    document.getElementById('main-content').innerHTML = `
-                        <div class="fade-in max-w-5xl mx-auto flex flex-col items-center justify-center min-h-[75vh]">
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 w-full">
-                                <div onclick="app.navigate('laptop')" class="bg-panel p-10 rounded-2xl border border-zinc-800 hover:border-primary cursor-pointer transition-all group text-center shadow-xl hover:shadow-primary/10 hover:-translate-y-2">
-                                    <div class="w-24 h-24 mx-auto bg-zinc-900 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                                        <i class="fa-solid fa-laptop text-5xl text-zinc-500 group-hover:text-primary transition-colors"></i>
-                                    </div>
-                                    <h3 class="text-2xl font-bold text-white tracking-wide">Laptop</h3>
-                                    <p class="text-zinc-500 mt-3 text-sm font-medium">Integrated Battery, Trackpad, Wi-Fi & Touchscreens</p>
-                                </div>
-                                <div onclick="app.navigate('desktop')" class="bg-panel p-10 rounded-2xl border border-zinc-800 hover:border-primary cursor-pointer transition-all group text-center shadow-xl hover:shadow-primary/10 hover:-translate-y-2">
-                                    <div class="w-24 h-24 mx-auto bg-zinc-900 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                                        <i class="fa-solid fa-desktop text-5xl text-zinc-500 group-hover:text-primary transition-colors"></i>
-                                    </div>
-                                    <h3 class="text-2xl font-bold text-white tracking-wide">Desktop</h3>
-                                    <p class="text-zinc-500 mt-3 text-sm font-medium">External Monitors, Peripherals & Deep I/O Testing</p>
-                                </div>
-                                <div onclick="app.navigate('server')" class="bg-panel p-10 rounded-2xl border border-zinc-800 hover:border-primary cursor-pointer transition-all group text-center shadow-xl hover:shadow-primary/10 hover:-translate-y-2">
-                                    <div class="w-24 h-24 mx-auto bg-zinc-900 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                                        <i class="fa-solid fa-server text-5xl text-zinc-500 group-hover:text-primary transition-colors"></i>
-                                    </div>
-                                    <h3 class="text-2xl font-bold text-white tracking-wide">Server Node</h3>
-                                    <p class="text-zinc-500 mt-3 text-sm font-medium">Network Latency & Core Architecture Scan</p>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                },
-
-                renderDeviceMenu: (deviceType) => {
-                    const title = deviceType.charAt(0).toUpperCase() + deviceType.slice(1) + " Diagnostic Suite";
-                    document.getElementById('page-title').innerHTML = `<i class="fa-solid fa-microchip text-primary"></i> ${title}`;
-                    const tests = app.tests[deviceType];
-                    
-                    let html = `<div class="fade-in max-w-6xl mx-auto pb-10">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-4">`;
-                    
-                    tests.forEach((test) => {
-                        html += `
-                            <div onclick="app.navigate('test', {device: '${deviceType}', testId: '${test.id}'})" class="bg-panel border border-zinc-800 hover:border-primary rounded-xl p-6 cursor-pointer transition-all group flex flex-col items-center text-center shadow-lg hover:shadow-primary/5 hover:-translate-y-1">
-                                <i class="fa-solid ${test.icon} text-4xl text-zinc-600 group-hover:text-primary transition-colors mb-4"></i>
-                                <h3 class="text-lg font-bold text-zinc-200 tracking-wide">${test.name}</h3>
-                            </div>
-                        `;
-                    });
-
-                    html += `</div></div>`;
-                    document.getElementById('main-content').innerHTML = html;
-                },
-
-                renderActiveTest: (device, testId) => {
-                    const testDef = app.tests[device].find(t => t.id === testId);
-                    
-                    document.getElementById('page-title').innerHTML = `
-                        <button onclick="app.navigate('${device}')" class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-300 mr-4 transition-colors font-bold text-sm">
-                            <i class="fa-solid fa-chevron-left mr-2"></i> BACK
-                        </button> 
-                        <span class="text-white">${testDef.name}</span>
-                    `;
-
-                    let testUI = `<div class="text-center text-zinc-600 font-mono mt-20">MODULE_NOT_FOUND</div>`;
-
-                    if (testId === 'sysinfo') testUI = app.testTemplates.sysinfo();
-                    else if (testId === 'battery') testUI = app.testTemplates.battery();
-                    else if (testId === 'keyboard') testUI = app.testTemplates.fullKeyboard();
-                    else if (testId === 'touchpad' || testId === 'mouse') testUI = app.testTemplates.mouse();
-                    else if (testId === 'touchscreen') testUI = app.testTemplates.touchscreen();
-                    else if (testId === 'display' || testId === 'monitor') testUI = app.testTemplates.display();
-                    else if (testId === 'ports') testUI = app.testTemplates.ports();
-                    else if (testId === 'camera') testUI = app.testTemplates.camera();
-                    else if (testId === 'mic') testUI = app.testTemplates.mic();
-                    else if (testId === 'voice') testUI = app.testTemplates.voice();
-                    else if (testId === 'speaker') testUI = app.testTemplates.speaker();
-                    else if (testId === 'network') testUI = app.testTemplates.network();
-
-                    document.getElementById('main-content').innerHTML = `
-                        <div class="fade-in max-w-5xl mx-auto h-full">
-                            ${testUI}
-                        </div>
-                    `;
-
-                    // Auto-Init Logic
-                    setTimeout(() => {
-                        if (testId === 'sysinfo') app.hardwareLogic.runSysInfoScan();
-                        else if (testId === 'battery') app.hardwareLogic.initBattery();
-                        else if (testId === 'keyboard') app.hardwareLogic.initFullKeyboard();
-                        else if (testId === 'touchpad' || testId === 'mouse') app.hardwareLogic.initMouse();
-                        else if (testId === 'touchscreen') app.hardwareLogic.initTouchscreen();
-                        else if (testId === 'ports') app.hardwareLogic.initPorts();
-                    }, 100);
-                }
-            },
-
-            testTemplates: {
-                sysinfo: () => `
-                    <div class="bg-panel border border-zinc-800 rounded-xl overflow-hidden shadow-2xl">
-                        <div class="bg-zinc-900 border-b border-zinc-800 px-6 py-4 flex justify-between items-center">
-                            <div class="flex gap-2"><div class="w-3 h-3 rounded-full bg-red-500"></div><div class="w-3 h-3 rounded-full bg-yellow-500"></div><div class="w-3 h-3 rounded-full bg-green-500"></div></div>
-                            <span class="font-mono text-sm text-zinc-500">engine-sys-scan.exe</span>
-                        </div>
-                        <div class="p-6">
-                            <button onclick="app.hardwareLogic.runSysInfoScan()" class="mb-6 px-6 py-3 bg-primary hover:bg-cyan-400 text-darker font-bold rounded shadow-[0_0_15px_rgba(6,182,212,0.4)] transition-all flex items-center gap-3">
-                                <i class="fa-solid fa-radar-centric fa-spin-pulse"></i> INITIATE HARDWARE SCAN
-                            </button>
-                            <div id="sysinfo-terminal" class="font-mono text-sm text-terminal bg-black p-6 rounded border border-zinc-800 h-96 overflow-y-auto whitespace-pre-wrap leading-relaxed shadow-inner">
-> Ready to scan hardware environment...
-                            </div>
-                        </div>
-                    </div>`,
-
+            templates: {
                 battery: () => `
-                    <div class="bg-panel border border-zinc-800 rounded-xl p-8 shadow-2xl">
-                        <div class="text-center mb-8">
-                            <i class="fa-solid fa-car-battery text-5xl text-primary mb-4"></i>
-                            <h3 class="text-2xl font-bold text-white tracking-wide">Deep Battery Analyzer</h3>
-                            <p class="text-zinc-500 font-medium mt-2">Checking cell integrity and discharge rate.</p>
+                    <div class="bg-panel border border-zinc-800 rounded-sm shadow-2xl p-1 overflow-hidden">
+                        <div class="bg-zinc-200 text-black px-3 py-1 flex items-center justify-between text-xs border-b border-zinc-400">
+                            <div class="font-sans flex items-center gap-2"><i class="fa-solid fa-battery-half text-zinc-600"></i> BatteryInfoView</div>
+                            <div class="flex gap-1"><div class="w-3 h-3 bg-zinc-400 border border-zinc-500"></div><div class="w-3 h-3 bg-zinc-400 border border-zinc-500"></div><div class="w-3 h-3 bg-red-500 border border-red-700 text-white flex items-center justify-center font-bold" style="font-size: 8px;">X</div></div>
                         </div>
-                        
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 bg-black p-6 rounded-lg border border-zinc-800">
-                            <div class="flex flex-col items-center justify-center border-r border-zinc-800 pr-4">
-                                <div class="relative w-48 h-24 border-4 border-zinc-600 rounded-xl mx-auto mb-6 p-1 flex shadow-inner">
-                                    <div class="absolute -right-4 top-1/2 -translate-y-1/2 w-3 h-10 bg-zinc-600 rounded-r-md"></div>
-                                    <div id="bat-level" class="h-full bg-zinc-800 rounded-md transition-all duration-1000" style="width: 0%"></div>
-                                    <div id="bat-text" class="absolute inset-0 flex items-center justify-center font-bold text-white text-3xl z-10 drop-shadow-md font-mono">--%</div>
-                                </div>
-                                <div id="bat-status" class="text-zinc-400 font-mono font-bold bg-zinc-900 border border-zinc-800 px-6 py-3 rounded-lg flex items-center gap-3"><i class="fa-solid fa-spinner fa-spin"></i> Analyzing Sensors...</div>
-                            </div>
-                            
-                            <div class="space-y-4 font-mono text-sm flex flex-col justify-center">
-                                <div class="flex justify-between border-b border-zinc-800 pb-2"><span class="text-zinc-500">API Access:</span><span class="text-success font-bold">GRANTED</span></div>
-                                <div class="flex justify-between border-b border-zinc-800 pb-2"><span class="text-zinc-500">Time to Empty:</span><span id="bat-empty" class="text-white font-bold">Calculating...</span></div>
-                                <div class="flex justify-between border-b border-zinc-800 pb-2"><span class="text-zinc-500">Time to Full:</span><span id="bat-full" class="text-white font-bold">Calculating...</span></div>
-                                <div class="flex justify-between border-b border-zinc-800 pb-2"><span class="text-zinc-500">Physical Cycle Count:</span><span class="text-warning font-bold">OS LOCKED</span></div>
-                                <div class="flex justify-between pt-2"><span class="text-zinc-500">Est. Health Status:</span><span id="bat-health" class="text-white font-bold">Unknown</span></div>
-                            </div>
+                        <div class="bg-zinc-100 border-b border-zinc-300 p-1 flex gap-2">
+                            <button class="px-2 py-1 hover:bg-zinc-300 border border-transparent hover:border-zinc-400 text-black text-xs cursor-pointer"><i class="fa-solid fa-rotate-right text-blue-600"></i> Refresh</button>
+                            <button class="px-2 py-1 hover:bg-zinc-300 border border-transparent hover:border-zinc-400 text-black text-xs cursor-pointer"><i class="fa-solid fa-save text-blue-600"></i> Save</button>
+                        </div>
+                        <div class="overflow-x-auto bg-dark pb-2">
+                            <table class="data-grid" id="battery-table">
+                                <thead><tr><th>Property</th><th>Value</th></tr></thead>
+                                <tbody>
+                                    <tr><td>Description</td><td>Local System Battery</td></tr>
+                                    <tr><td>Power State</td><td id="b-state">Scanning...</td></tr>
+                                    <tr><td>Current Capacity (in %)</td><td id="b-level">Scanning...</td></tr>
+                                    <tr><td>Current Capacity Value</td><td class="text-zinc-500">OS Restricted</td></tr>
+                                    <tr><td>Full Charged Capacity</td><td class="text-zinc-500">OS Restricted</td></tr>
+                                    <tr><td>Designed Capacity</td><td class="text-zinc-500">OS Restricted</td></tr>
+                                    <tr><td>Battery Health</td><td class="text-zinc-500" id="b-health">Calculating Estimate...</td></tr>
+                                    <tr><td>Voltage</td><td class="text-zinc-500">OS Restricted</td></tr>
+                                    <tr><td>Charge/Discharge Rate</td><td class="text-zinc-500">OS Restricted</td></tr>
+                                    <tr><td>Time to Full Charge</td><td id="b-full">N/A</td></tr>
+                                    <tr><td>Time to Empty</td><td id="b-empty">N/A</td></tr>
+                                    <tr><td>Chemistry</td><td class="text-zinc-500">Lithium-Ion (Assumed)</td></tr>
+                                    <tr><td>Cycle Count</td><td class="text-zinc-500 font-bold bg-zinc-900/50">Blocked by Browser Sandbox Security</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="p-3 bg-zinc-900 border-t border-zinc-800 text-xs text-zinc-500 font-mono flex gap-2">
+                            <i class="fa-solid fa-circle-info text-primary mt-0.5"></i>
+                            <p>Deep hardware metrics (Voltage, Cycle Count, exact mWh Capacities) cannot be accessed via web browsers to prevent device fingerprinting. Values marked "OS Restricted" require native application privileges.</p>
                         </div>
                     </div>`,
 
-                fullKeyboard: () => `
-                    <div class="bg-panel border border-zinc-800 rounded-xl p-6 text-center shadow-2xl">
-                        <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-4 mb-8 inline-block">
-                            <p class="text-zinc-300 font-medium flex items-center gap-3">
-                                <i class="fa-solid fa-shield-halved text-primary text-xl"></i>
-                                Strict Intercept Mode Active. Browser shortcuts are blocked.
+                keyboard: () => `
+                    <div class="bg-panel border border-zinc-800 rounded-xl p-6 text-center shadow-2xl mt-4">
+                        <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-3 mb-6 inline-block">
+                            <p class="text-zinc-300 text-sm flex items-center gap-3">
+                                <i class="fa-solid fa-shield-halved text-primary"></i>
+                                Hardware Intercept Mode Active. Default browser shortcuts (F5, Space, Tab) are blocked for testing.
                             </p>
                         </div>
-                        
-                        <div id="keyboard-container" class="bg-black p-8 rounded-xl border border-zinc-800 inline-block overflow-x-auto max-w-full shadow-inner">
+                        <div id="keyboard-container" class="bg-black p-6 rounded-xl border border-zinc-800 inline-block overflow-x-auto max-w-full shadow-inner">
                             <!-- Generated by JS -->
                         </div>
-                        
                         <div class="mt-8">
-                            <button onclick="app.hardwareLogic.initFullKeyboard()" class="px-6 py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-500 text-white font-bold rounded-lg transition-all"><i class="fa-solid fa-rotate-right mr-2 text-primary"></i> Reset Grid</button>
+                            <button onclick="app.hardware.keyboard()" class="px-6 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-500 text-white font-bold text-sm rounded-lg transition-all"><i class="fa-solid fa-rotate-right mr-2 text-primary"></i> Reset Grid</button>
                         </div>
                     </div>`,
 
-                mouse: () => `
-                    <div class="bg-panel border border-zinc-800 rounded-xl p-8 text-center shadow-2xl">
-                        <h3 class="text-2xl text-white font-bold mb-2">Input & Tracker Verification</h3>
-                        <p class="text-zinc-500 font-medium mb-8">Move pointer, click all buttons, and scroll inside the active zone.</p>
-                        
-                        <div id="mouse-area" class="w-full h-80 bg-black border-2 border-dashed border-zinc-700 hover:border-primary rounded-xl relative overflow-hidden mb-8 cursor-crosshair flex items-center justify-center flex-col select-none group transition-colors">
-                            <i class="fa-solid fa-crosshairs text-7xl text-zinc-800 group-hover:text-zinc-700 transition-colors mb-4"></i>
-                            <div id="mouse-trail" class="absolute w-4 h-4 bg-primary rounded-full pointer-events-none opacity-0 transition-opacity z-10 shadow-[0_0_15px_#06b6d4]"></div>
-                        </div>
-                        <div class="flex justify-center gap-6 font-mono text-lg font-bold">
-                            <div id="m-left" class="w-40 py-4 bg-zinc-900 rounded-lg text-zinc-500 border border-zinc-800 transition-all">L-CLICK</div>
-                            <div id="m-scroll" class="w-40 py-4 bg-zinc-900 rounded-lg text-zinc-500 border border-zinc-800 transition-all">SCROLL</div>
-                            <div id="m-right" class="w-40 py-4 bg-zinc-900 rounded-lg text-zinc-500 border border-zinc-800 transition-all">R-CLICK</div>
-                        </div>
-                    </div>`,
-
-                touchscreen: () => `
-                    <div class="bg-panel border border-zinc-800 rounded-xl p-6 text-center shadow-2xl">
-                        <div class="flex justify-between items-center mb-4 px-4">
-                            <p class="text-zinc-400 font-medium text-left">Draw continuously across the digitizer.<br>Look for breaks indicating dead zones.</p>
-                            <button onclick="app.hardwareLogic.clearCanvas()" class="px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-white font-bold rounded-lg border border-zinc-700 transition-colors"><i class="fa-solid fa-eraser mr-2"></i> Clear</button>
-                        </div>
-                        <canvas id="touch-canvas" class="shadow-inner"></canvas>
-                    </div>`,
-
-                display: () => `
-                    <div class="bg-panel border border-zinc-800 rounded-xl p-12 text-center shadow-2xl">
-                        <i class="fa-solid fa-display text-7xl text-primary mb-8 block drop-shadow-[0_0_15px_rgba(6,182,212,0.3)]"></i>
-                        <h3 class="text-3xl font-bold text-white mb-4">Pixel Sub-Array Test</h3>
-                        <p class="mb-10 text-zinc-400 max-w-lg mx-auto font-medium">This will lock the screen into fullscreen mode and cycle raw RGB values. Inspect closely for dead pixels (black spots) or stuck pixels (bright spots).</p>
-                        <button onclick="app.hardwareLogic.startDisplayTest()" class="px-10 py-5 bg-primary hover:bg-cyan-400 text-darker rounded-lg transition-all shadow-[0_0_20px_rgba(6,182,212,0.4)] text-xl font-bold uppercase tracking-widest"><i class="fa-solid fa-play mr-3"></i> Launch Fullscreen Test</button>
-                        <p class="mt-6 text-sm font-mono text-zinc-600 border border-zinc-800 bg-zinc-900 inline-block px-4 py-2 rounded">Click to cycle colors. Press ESC to exit.</p>
-                    </div>`,
-
-                ports: () => `
-                    <div class="bg-panel border border-zinc-800 rounded-xl p-8 shadow-2xl">
-                        <div class="text-center mb-10">
-                            <i class="fa-brands fa-hubspot text-6xl text-primary mb-4 animate-pulse"></i>
-                            <h3 class="text-2xl font-bold text-white mb-2">Live Hardware Connection Listener</h3>
-                            <p class="text-zinc-400 font-medium">Plug in USB drives, headsets, or webcams to verify motherboard port functionality.</p>
+                touchpad: () => `
+                    <div class="bg-panel border border-zinc-800 rounded-xl p-8 text-center shadow-2xl mt-4">
+                        <div class="flex justify-between items-end mb-6">
+                            <div class="text-left">
+                                <h3 class="text-xl text-white font-bold mb-1">Trackpad & Mouse Diagnostics</h3>
+                                <p class="text-zinc-500 text-sm">Draw in the box to test multi-touch/tracking. Use physical buttons to test clicks.</p>
+                            </div>
+                            <button onclick="app.hardware.clearTouchpad()" class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-sm rounded border border-zinc-700 transition-colors"><i class="fa-solid fa-eraser mr-2"></i> Clear Surface</button>
                         </div>
                         
-                        <div id="port-grid" class="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl mx-auto">
-                            <!-- Virtual Ports -->
-                            <div class="port-light bg-black border-2 border-zinc-800 rounded-xl p-6 text-center text-zinc-600">
-                                <i class="fa-brands fa-usb text-4xl mb-2"></i><p class="font-bold font-mono text-sm">PORT_A</p>
-                            </div>
-                            <div class="port-light bg-black border-2 border-zinc-800 rounded-xl p-6 text-center text-zinc-600">
-                                <i class="fa-brands fa-usb text-4xl mb-2"></i><p class="font-bold font-mono text-sm">PORT_B</p>
-                            </div>
-                            <div class="port-light bg-black border-2 border-zinc-800 rounded-xl p-6 text-center text-zinc-600">
-                                <i class="fa-solid fa-plug text-4xl mb-2"></i><p class="font-bold font-mono text-sm">PORT_C</p>
-                            </div>
-                            <div class="port-light bg-black border-2 border-zinc-800 rounded-xl p-6 text-center text-zinc-600">
-                                <i class="fa-solid fa-headset text-4xl mb-2"></i><p class="font-bold font-mono text-sm">AUDIO_JACK</p>
-                            </div>
-                        </div>
+                        <canvas id="touch-canvas" class="mb-6 shadow-inner"></canvas>
                         
-                        <div class="mt-10 bg-zinc-900/50 border border-zinc-800 p-4 rounded-lg text-center">
-                            <p class="text-sm text-zinc-500 font-mono"><i class="fa-solid fa-shield-halved text-warning mr-2"></i> Pure power cables (chargers) do not transmit data interrupts.</p>
+                        <div class="flex justify-center gap-4 font-mono text-sm font-bold w-full max-w-2xl mx-auto">
+                            <div id="m-left" class="flex-1 py-4 bg-zinc-900 rounded border border-zinc-800 text-zinc-600 transition-all">LEFT CLICK</div>
+                            <div id="m-scroll" class="flex-1 py-4 bg-zinc-900 rounded border border-zinc-800 text-zinc-600 transition-all">SCROLL WHEEL</div>
+                            <div id="m-right" class="flex-1 py-4 bg-zinc-900 rounded border border-zinc-800 text-zinc-600 transition-all">RIGHT CLICK</div>
                         </div>
                     </div>`,
 
-                camera: () => `
-                    <div class="bg-panel border border-zinc-800 rounded-xl p-8 flex flex-col items-center shadow-2xl">
-                        <div class="w-full max-w-3xl aspect-video bg-black rounded-xl overflow-hidden border-2 border-zinc-800 relative flex items-center justify-center mb-8 shadow-inner group">
-                            <video id="webcam-video" autoplay playsinline class="w-full h-full object-cover hidden"></video>
-                            <div id="cam-placeholder" class="text-zinc-600 text-center"><i class="fa-solid fa-video-slash text-7xl mb-4 block group-hover:scale-110 transition-transform"></i> Sensor Offline</div>
-                        </div>
-                        <button onclick="app.hardwareLogic.startCamera()" class="px-10 py-4 bg-primary hover:bg-cyan-400 text-darker rounded-lg font-bold uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(6,182,212,0.3)]"><i class="fa-solid fa-video mr-3"></i> Activate Sensor</button>
-                    </div>`,
-                
                 mic: () => `
-                    <div class="bg-panel border border-zinc-800 rounded-xl p-8 flex flex-col items-center shadow-2xl">
-                        <h3 class="text-2xl font-bold text-white mb-8 tracking-wide">Audio Input Monitor</h3>
-                        <div class="w-full max-w-2xl h-48 bg-black rounded-xl border-2 border-zinc-800 flex items-end justify-between p-3 gap-1 mb-10 shadow-inner" id="audio-visualizer">
-                            <!-- Bars injected by JS -->
+                    <div class="bg-panel border border-zinc-800 rounded-xl p-8 flex flex-col items-center shadow-2xl mt-4">
+                        <i class="fa-solid fa-microphone-lines text-5xl text-zinc-600 mb-6 drop-shadow-md" id="mic-icon"></i>
+                        <h3 class="text-2xl font-bold text-white mb-2 tracking-wide">Microphone Oscilloscope</h3>
+                        <p class="text-zinc-500 text-sm mb-8">Test your microphone via real-time waveform analysis.</p>
+                        
+                        <div class="w-full max-w-3xl mb-8 relative group">
+                            <canvas id="mic-canvas"></canvas>
+                            <div id="mic-overlay" class="absolute inset-0 bg-black/80 flex items-center justify-center rounded-8px border border-zinc-800 z-10 backdrop-blur-sm">
+                                <button onclick="app.hardware.startMic()" class="px-8 py-3 bg-primary hover:bg-cyan-400 text-darker rounded font-bold uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(6,182,212,0.4)]">
+                                    <i class="fa-solid fa-play mr-2"></i> Allow Access & Start
+                                </button>
+                            </div>
                         </div>
-                        <button onclick="app.hardwareLogic.startMic()" class="px-10 py-4 bg-primary hover:bg-cyan-400 text-darker rounded-lg font-bold uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(6,182,212,0.3)]"><i class="fa-solid fa-microphone mr-3"></i> Activate Arrays</button>
                     </div>`,
 
                 voice: () => `
-                    <div class="bg-panel border border-zinc-800 rounded-xl p-8 flex flex-col items-center shadow-2xl">
+                    <div class="bg-panel border border-zinc-800 rounded-xl p-8 flex flex-col items-center shadow-2xl mt-4">
                         <i class="fa-solid fa-voicemail text-6xl text-primary mb-6 drop-shadow-[0_0_15px_rgba(6,182,212,0.3)]"></i>
-                        <h3 class="text-2xl font-bold text-white mb-2 tracking-wide">Mic Quality Test</h3>
-                        <p class="text-zinc-500 font-medium mb-8">Record a short phrase to verify the audio is not muffled or distorted.</p>
+                        <h3 class="text-2xl font-bold text-white mb-2 tracking-wide">Voice Recorder Quality Test</h3>
+                        <p class="text-zinc-500 font-medium text-sm mb-8 text-center max-w-lg">Record a short phrase (e.g. "Testing 1, 2, 3") and play it back to verify the internal microphone is not muffled or distorted.</p>
                         
-                        <div class="flex gap-6 mb-8">
-                            <button id="btn-record" onclick="app.hardwareLogic.startRecording()" class="px-8 py-4 bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold uppercase tracking-widest transition-all shadow-lg"><i class="fa-solid fa-circle text-xs align-middle mr-2"></i> Record</button>
-                            <button id="btn-stop" onclick="app.hardwareLogic.stopRecording()" class="px-8 py-4 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-400 rounded-lg font-bold uppercase tracking-widest transition-all hidden"><i class="fa-solid fa-stop mr-2"></i> Stop</button>
+                        <div class="flex gap-4 mb-8">
+                            <button id="btn-record" onclick="app.hardware.startVoice()" class="px-8 py-4 bg-red-600 hover:bg-red-500 text-white rounded font-bold uppercase tracking-widest transition-all shadow-lg w-48"><i class="fa-solid fa-circle text-xs align-middle mr-2"></i> Record</button>
+                            <button id="btn-stop" onclick="app.hardware.stopVoice()" class="px-8 py-4 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-400 rounded font-bold uppercase tracking-widest transition-all hidden w-48"><i class="fa-solid fa-stop mr-2"></i> Stop</button>
                         </div>
                         
-                        <div id="playback-container" class="w-full max-w-lg bg-black border border-zinc-800 p-6 rounded-xl hidden flex-col items-center">
-                            <span class="text-success font-bold font-mono text-sm mb-4"><i class="fa-solid fa-check mr-2"></i> Recording Captured</span>
+                        <div id="playback-container" class="w-full max-w-lg bg-black border border-zinc-800 p-6 rounded-xl hidden flex-col items-center shadow-inner">
+                            <span class="text-success font-bold font-mono text-sm mb-4"><i class="fa-solid fa-check mr-2"></i> Audio Captured</span>
                             <audio id="audio-playback" controls class="w-full"></audio>
                         </div>
                     </div>`,
 
-                speaker: () => `
-                    <div class="bg-panel border border-zinc-800 rounded-xl p-12 text-center shadow-2xl">
-                        <i class="fa-solid fa-volume-high text-7xl text-zinc-600 mb-10 block"></i>
-                        <h3 class="text-3xl font-bold text-white mb-10 tracking-wide">Stereo Driver Test</h3>
-                        <div class="flex justify-center gap-6 mb-8">
-                            <button onclick="app.hardwareLogic.playTone(440, 'left')" class="flex-1 py-6 bg-zinc-900 border-2 border-zinc-700 hover:border-primary hover:text-primary text-zinc-300 font-bold rounded-xl transition-all shadow-lg text-xl tracking-wider"><i class="fa-solid fa-ear-listen mb-2 block text-3xl"></i> LEFT</button>
-                            <button onclick="app.hardwareLogic.playTone(440, 'both')" class="flex-1 py-6 bg-primary border-2 border-primary hover:bg-cyan-400 text-darker font-bold rounded-xl transition-all shadow-[0_0_20px_rgba(6,182,212,0.3)] text-xl tracking-wider"><i class="fa-solid fa-arrows-left-right mb-2 block text-3xl"></i> BOTH</button>
-                            <button onclick="app.hardwareLogic.playTone(440, 'right')" class="flex-1 py-6 bg-zinc-900 border-2 border-zinc-700 hover:border-primary hover:text-primary text-zinc-300 font-bold rounded-xl transition-all shadow-lg text-xl tracking-wider"><i class="fa-solid fa-ear-listen mb-2 block text-3xl transform scale-x-[-1]"></i> RIGHT</button>
+                camera: () => `
+                    <div class="bg-panel border border-zinc-800 rounded-xl p-8 flex flex-col items-center shadow-2xl mt-4">
+                        <div class="w-full max-w-3xl aspect-video bg-black rounded-xl overflow-hidden border border-zinc-700 relative flex items-center justify-center mb-6 shadow-inner group">
+                            <video id="webcam-video" autoplay playsinline class="w-full h-full object-cover hidden transform scale-x-[-1]"></video>
+                            <div id="cam-overlay" class="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-10">
+                                <i class="fa-solid fa-camera text-5xl text-zinc-600 mb-6"></i>
+                                <button onclick="app.hardware.startCamera()" class="px-8 py-3 bg-primary hover:bg-cyan-400 text-darker rounded font-bold uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(6,182,212,0.4)]">
+                                    <i class="fa-solid fa-play mr-2"></i> Initialize Sensor
+                                </button>
+                            </div>
                         </div>
-                        <p class="text-sm font-mono text-zinc-500 mt-8">Generates a 440Hz sine wave panned to the selected channel.</p>
+                        <div class="w-full max-w-3xl flex justify-between px-2">
+                            <span class="text-xs font-mono text-zinc-500" id="cam-res">Resolution: Standby</span>
+                            <span class="text-xs font-mono text-zinc-500">Video mirrored for natural testing</span>
+                        </div>
                     </div>`,
-                
-                network: () => `
-                    <div class="bg-panel border border-zinc-800 rounded-xl p-8 shadow-2xl">
-                        <h3 class="text-2xl font-bold text-white mb-4 flex items-center gap-3"><i class="fa-solid fa-network-wired text-primary"></i> Outbound Connectivity</h3>
-                        <p class="text-zinc-500 font-medium mb-6">Verify network card latency and DNS resolution.</p>
-                        
-                        <div class="flex gap-4 mb-6">
-                            <input type="text" id="ping-target" value="https://cloudflare.com" class="flex-1 bg-black border border-zinc-700 rounded-lg px-6 py-4 text-white font-mono focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all" placeholder="Enter endpoint URL...">
-                            <button onclick="app.hardwareLogic.testNetwork()" class="px-8 py-4 bg-primary hover:bg-cyan-400 text-darker font-bold uppercase tracking-widest rounded-lg shadow-[0_0_15px_rgba(6,182,212,0.3)] transition-all">Send Packet</button>
+
+                ports: () => `
+                    <div class="bg-panel border border-zinc-800 rounded-xl p-8 shadow-2xl mt-4">
+                        <div class="text-center mb-10">
+                            <i class="fa-brands fa-hubspot text-6xl text-primary mb-4 animate-pulse"></i>
+                            <h3 class="text-2xl font-bold text-white mb-2">Live Hardware Connection Listener</h3>
+                            <p class="text-zinc-400 text-sm max-w-xl mx-auto">Actively scanning the motherboard for hardware interrupts. Plug in a USB drive, Type-C cable, Audio headset, or HDMI monitor.</p>
                         </div>
                         
-                        <div id="network-log" class="h-64 bg-black border border-zinc-800 rounded-lg p-6 font-mono text-sm text-terminal overflow-y-auto shadow-inner leading-relaxed">
-> Ready to execute network diagnostic...
+                        <div id="port-grid" class="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
+                            <div id="port-usb" class="port-light bg-black border border-zinc-700 rounded-xl p-8 text-center text-zinc-600 flex flex-col items-center justify-center h-40 relative overflow-hidden">
+                                <i class="fa-brands fa-usb text-5xl mb-3"></i>
+                                <p class="font-bold font-mono text-sm text-zinc-400">USB / TYPE-C</p>
+                                <div class="absolute bottom-0 w-full h-1 bg-zinc-800" id="bar-usb"></div>
+                            </div>
+                            <div id="port-audio" class="port-light bg-black border border-zinc-700 rounded-xl p-8 text-center text-zinc-600 flex flex-col items-center justify-center h-40 relative overflow-hidden">
+                                <i class="fa-solid fa-headset text-5xl mb-3"></i>
+                                <p class="font-bold font-mono text-sm text-zinc-400">AUDIO JACK</p>
+                                <div class="absolute bottom-0 w-full h-1 bg-zinc-800" id="bar-audio"></div>
+                            </div>
+                            <div id="port-hdmi" class="port-light bg-black border border-zinc-700 rounded-xl p-8 text-center text-zinc-600 flex flex-col items-center justify-center h-40 relative overflow-hidden">
+                                <i class="fa-solid fa-display text-5xl mb-3"></i>
+                                <p class="font-bold font-mono text-sm text-zinc-400">HDMI / DISPLAY</p>
+                                <div class="absolute bottom-0 w-full h-1 bg-zinc-800" id="bar-hdmi"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-10 bg-zinc-900/50 border border-zinc-800 p-4 rounded text-center max-w-3xl mx-auto">
+                            <p class="text-xs text-zinc-500 font-mono"><i class="fa-solid fa-triangle-exclamation text-warning mr-2"></i> Power-only chargers do not trigger data interrupts. You must use data-enabled peripherals.</p>
                         </div>
                     </div>`
             },
 
-            hardwareLogic: {
-                runSysInfoScan: async () => {
-                    const el = document.getElementById('sysinfo-terminal');
-                    if(!el) return;
-                    
-                    el.innerHTML = `> Initiating OS query...<br>`;
-                    
-                    const log = (msg, delay) => {
-                        return new Promise(resolve => {
-                            setTimeout(() => {
-                                el.innerHTML += `<span class="typing-line">${msg}</span><br>`;
-                                el.scrollTop = el.scrollHeight;
-                                resolve();
-                            }, delay);
-                        });
-                    };
-
-                    await log(`> Fetching Navigator Objects... OK`, 500);
-                    
-                    let cores = navigator.hardwareConcurrency || 'Unknown';
-                    let ram = navigator.deviceMemory ? navigator.deviceMemory + ' GB+' : 'Unknown (Browser Locked)';
-                    let platform = navigator.platform;
-                    
-                    await log(`[CPU] Logical Cores Detected: <span class="text-white">${cores} Threads</span>`, 400);
-                    await log(`[RAM] Est. Memory Capacity: <span class="text-white">${ram}</span>`, 400);
-                    await log(`[SYS] OS Platform architecture: <span class="text-white">${platform}</span>`, 300);
-                    
-                    await log(`> Accessing WebGL Subsystem...`, 600);
-                    const canvas = document.createElement('canvas');
-                    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-                    if (gl) {
-                        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-                        const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
-                        const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
-                        await log(`[GPU] Graphics Vendor: <span class="text-white">${vendor}</span>`, 300);
-                        await log(`[GPU] Render Engine: <span class="text-white">${renderer}</span>`, 200);
-                    } else {
-                        await log(`[GPU] WebGL Context Failed.`, 200);
-                    }
-
-                    await log(`[DSP] Screen Resolution: <span class="text-white">${window.screen.width} x ${window.screen.height}</span> @ ${window.screen.colorDepth}-bit`, 300);
-                    
-                    await log(`> Scanning DMI/SMBIOS for Serial Numbers...`, 800);
-                    await log(`<span class="text-warning">[WARN] Hardware Lock: Browser Sandbox explicitly denies access to Chassis Serial/MAC.</span>`, 600);
-                    
-                    await log(`> Scan Complete. All accessible metrics recorded.`, 400);
-                },
-
-                initBattery: async () => {
-                    const lvl = document.getElementById('bat-level');
-                    const txt = document.getElementById('bat-text');
-                    const stat = document.getElementById('bat-status');
-                    const eTime = document.getElementById('bat-empty');
-                    const fTime = document.getElementById('bat-full');
-                    const hlth = document.getElementById('bat-health');
-                    
+            hardware: {
+                battery: async () => {
                     if ('getBattery' in navigator) {
                         try {
-                            const battery = await navigator.getBattery();
-                            const updateBat = () => {
-                                const p = Math.round(battery.level * 100);
-                                lvl.style.width = `${p}%`;
-                                txt.innerText = `${p}%`;
+                            const b = await navigator.getBattery();
+                            const update = () => {
+                                document.getElementById('b-level').innerHTML = `${Math.round(b.level * 100)}%`;
+                                document.getElementById('b-state').innerHTML = b.charging ? '<span class="text-success">Charging (AC Power)</span>' : '<span class="text-warning">Discharging (Battery)</span>';
                                 
-                                if(battery.charging) {
-                                    stat.innerHTML = `<i class="fa-solid fa-bolt text-primary mr-2"></i> Power Connected`;
-                                    stat.className = "text-primary font-mono font-bold bg-primary/10 border border-primary/30 px-6 py-3 rounded-lg flex items-center shadow-[0_0_10px_rgba(6,182,212,0.2)]";
-                                } else {
-                                    stat.innerHTML = `<i class="fa-solid fa-arrow-down mr-2"></i> Discharging`;
-                                    stat.className = "text-warning font-mono font-bold bg-warning/10 border border-warning/30 px-6 py-3 rounded-lg flex items-center";
-                                }
+                                const formatTime = (sec) => {
+                                    if(sec === Infinity || sec === 0) return 'Unknown / Calculating...';
+                                    const hrs = Math.floor(sec / 3600);
+                                    const mins = Math.floor((sec % 3600) / 60);
+                                    return `${hrs}h ${mins}m`;
+                                };
                                 
-                                // Color logic
-                                if(p <= 20) lvl.className = "h-full bg-red-500 rounded-md transition-all duration-1000";
-                                else if (p <= 50) lvl.className = "h-full bg-yellow-500 rounded-md transition-all duration-1000";
-                                else lvl.className = "h-full bg-success rounded-md transition-all duration-1000 shadow-[0_0_15px_rgba(16,185,129,0.5)]";
-
-                                // Detailed metrics
-                                eTime.innerText = battery.dischargingTime !== Infinity ? Math.round(battery.dischargingTime/60) + ' mins' : 'N/A';
-                                fTime.innerText = battery.chargingTime !== Infinity && battery.chargingTime !== 0 ? Math.round(battery.chargingTime/60) + ' mins' : (battery.level===1?'Full':'N/A');
+                                document.getElementById('b-empty').innerText = b.charging ? 'N/A' : formatTime(b.dischargingTime);
+                                document.getElementById('b-full').innerText = b.charging ? formatTime(b.chargingTime) : 'N/A';
                                 
-                                // Health estimation fake (since real is locked)
-                                hlth.innerHTML = p > 80 ? '<span class="text-success">Good (Estimated)</span>' : '<span class="text-warning">Degraded / Low</span>';
+                                // Fake health estimate purely for the UI based on general rules, as real health is OS restricted
+                                let health = "Good";
+                                if(b.level === 1 && b.charging) health = "Excellent";
+                                else if (!b.charging && b.dischargingTime !== Infinity && b.dischargingTime < 3600) health = "Degraded (Fast Discharge)";
+                                document.getElementById('b-health').innerHTML = `<span class="text-white">${health} (Estimated)</span>`;
                             };
-                            updateBat();
-                            battery.addEventListener('levelchange', updateBat);
-                            battery.addEventListener('chargingchange', updateBat);
-                            battery.addEventListener('dischargingtimechange', updateBat);
-                            battery.addEventListener('chargingtimechange', updateBat);
+                            update();
+                            b.addEventListener('levelchange', update);
+                            b.addEventListener('chargingchange', update);
+                            b.addEventListener('dischargingtimechange', update);
+                            b.addEventListener('chargingtimechange', update);
                         } catch(e) {
-                            stat.innerText = "Sensor Error";
+                            document.getElementById('b-state').innerText = "Access Denied by Browser";
                         }
                     } else {
-                        stat.innerText = "API Unsupported";
-                        txt.innerText = "N/A";
+                        document.getElementById('b-state').innerHTML = '<span class="text-danger">API Not Supported in this Browser</span>';
                     }
                 },
 
-                initFullKeyboard: () => {
+                keyboard: () => {
                     const container = document.getElementById('keyboard-container');
                     if(!container) return;
 
                     const rows = [
-                        [ {c:'Escape',w:'k-sm'},{c:'F1',w:'k-sm'},{c:'F2',w:'k-sm'},{c:'F3',w:'k-sm'},{c:'F4',w:'k-sm'},{c:'F5',w:'k-sm'},{c:'F6',w:'k-sm'},{c:'F7',w:'k-sm'},{c:'F8',w:'k-sm'},{c:'F9',w:'k-sm'},{c:'F10',w:'k-sm'},{c:'F11',w:'k-sm'},{c:'F12',w:'k-sm'},{c:'Delete',w:'k-sm'} ],
-                        [ {c:'`',w:'k-std'},{c:'1',w:'k-std'},{c:'2',w:'k-std'},{c:'3',w:'k-std'},{c:'4',w:'k-std'},{c:'5',w:'k-std'},{c:'6',w:'k-std'},{c:'7',w:'k-std'},{c:'8',w:'k-std'},{c:'9',w:'k-std'},{c:'0',w:'k-std'},{c:'-',w:'k-std'},{c:'=',w:'k-std'},{c:'Backspace',w:'k-w4',code:'Backspace'} ],
-                        [ {c:'Tab',w:'k-w1',code:'Tab'},{c:'Q',w:'k-std'},{c:'W',w:'k-std'},{c:'E',w:'k-std'},{c:'R',w:'k-std'},{c:'T',w:'k-std'},{c:'Y',w:'k-std'},{c:'U',w:'k-std'},{c:'I',w:'k-std'},{c:'O',w:'k-std'},{c:'P',w:'k-std'},{c:'[',w:'k-std'},{c:']',w:'k-std'},{c:'\\',w:'k-w1'} ],
-                        [ {c:'CapsLock',l:'Caps',w:'k-w2',code:'CapsLock'},{c:'A',w:'k-std'},{c:'S',w:'k-std'},{c:'D',w:'k-std'},{c:'F',w:'k-std'},{c:'G',w:'k-std'},{c:'H',w:'k-std'},{c:'J',w:'k-std'},{c:'K',w:'k-std'},{c:'L',w:'k-std'},{c:';',w:'k-std'},{c:'\'',w:'k-std'},{c:'Enter',w:'k-w4',code:'Enter'} ],
-                        [ {c:'Shift',l:'Shift',w:'k-w3',code:'ShiftLeft'},{c:'Z',w:'k-std'},{c:'X',w:'k-std'},{c:'C',w:'k-std'},{c:'V',w:'k-std'},{c:'B',w:'k-std'},{c:'N',w:'k-std'},{c:'M',w:'k-std'},{c:',',w:'k-std'},{c:'.',w:'k-std'},{c:'/',w:'k-std'},{c:'Shift',l:'Shift',w:'k-w4',code:'ShiftRight'} ],
-                        [ {c:'Control',l:'Ctrl',w:'k-w1',code:'ControlLeft'},{c:'Meta',l:'Win',w:'k-w1',code:'MetaLeft'},{c:'Alt',l:'Alt',w:'k-w1',code:'AltLeft'},{c:' ',l:'Space',w:'k-space',code:'Space'},{c:'Alt',l:'Alt',w:'k-w1',code:'AltRight'},{c:'Control',l:'Ctrl',w:'k-w1',code:'ControlRight'},{c:'ArrowLeft',l:'←',w:'k-std'},{c:'ArrowUp',l:'↑',w:'k-std'},{c:'ArrowDown',l:'↓',w:'k-std'},{c:'ArrowRight',l:'→',w:'k-std'} ]
+                        [ {c:'Esc',code:'Escape',w:'k-sm'},{c:'F1',w:'k-sm'},{c:'F2',w:'k-sm'},{c:'F3',w:'k-sm'},{c:'F4',w:'k-sm'},{c:'F5',w:'k-sm'},{c:'F6',w:'k-sm'},{c:'F7',w:'k-sm'},{c:'F8',w:'k-sm'},{c:'F9',w:'k-sm'},{c:'F10',w:'k-sm'},{c:'F11',w:'k-sm'},{c:'F12',w:'k-sm'},{c:'Del',code:'Delete',w:'k-sm'} ],
+                        [ {c:'`',code:'Backquote',w:'k-std'},{c:'1',code:'Digit1',w:'k-std'},{c:'2',code:'Digit2',w:'k-std'},{c:'3',code:'Digit3',w:'k-std'},{c:'4',code:'Digit4',w:'k-std'},{c:'5',code:'Digit5',w:'k-std'},{c:'6',code:'Digit6',w:'k-std'},{c:'7',code:'Digit7',w:'k-std'},{c:'8',code:'Digit8',w:'k-std'},{c:'9',code:'Digit9',w:'k-std'},{c:'0',code:'Digit0',w:'k-std'},{c:'-',code:'Minus',w:'k-std'},{c:'=',code:'Equal',w:'k-std'},{c:'Backspace',w:'k-w4',code:'Backspace'} ],
+                        [ {c:'Tab',w:'k-w1',code:'Tab'},{c:'Q',code:'KeyQ',w:'k-std'},{c:'W',code:'KeyW',w:'k-std'},{c:'E',code:'KeyE',w:'k-std'},{c:'R',code:'KeyR',w:'k-std'},{c:'T',code:'KeyT',w:'k-std'},{c:'Y',code:'KeyY',w:'k-std'},{c:'U',code:'KeyU',w:'k-std'},{c:'I',code:'KeyI',w:'k-std'},{c:'O',code:'KeyO',w:'k-std'},{c:'P',code:'KeyP',w:'k-std'},{c:'[',code:'BracketLeft',w:'k-std'},{c:']',code:'BracketRight',w:'k-std'},{c:'\\',code:'Backslash',w:'k-w1'} ],
+                        [ {c:'Caps',w:'k-w2',code:'CapsLock'},{c:'A',code:'KeyA',w:'k-std'},{c:'S',code:'KeyS',w:'k-std'},{c:'D',code:'KeyD',w:'k-std'},{c:'F',code:'KeyF',w:'k-std'},{c:'G',code:'KeyG',w:'k-std'},{c:'H',code:'KeyH',w:'k-std'},{c:'J',code:'KeyJ',w:'k-std'},{c:'K',code:'KeyK',w:'k-std'},{c:'L',code:'KeyL',w:'k-std'},{c:';',code:'Semicolon',w:'k-std'},{c:'\'',code:'Quote',w:'k-std'},{c:'Enter',w:'k-w4',code:'Enter'} ],
+                        [ {c:'Shift L',w:'k-w3',code:'ShiftLeft'},{c:'Z',code:'KeyZ',w:'k-std'},{c:'X',code:'KeyX',w:'k-std'},{c:'C',code:'KeyC',w:'k-std'},{c:'V',code:'KeyV',w:'k-std'},{c:'B',code:'KeyB',w:'k-std'},{c:'N',code:'KeyN',w:'k-std'},{c:'M',code:'KeyM',w:'k-std'},{c:',',code:'Comma',w:'k-std'},{c:'.',code:'Period',w:'k-std'},{c:'/',code:'Slash',w:'k-std'},{c:'Shift R',w:'k-w4',code:'ShiftRight'} ],
+                        [ {c:'Ctrl L',w:'k-w1',code:'ControlLeft'},{c:'Win',w:'k-w1',code:'MetaLeft'},{c:'Alt L',w:'k-w1',code:'AltLeft'},{c:'Space',w:'k-space',code:'Space'},{c:'Alt R',w:'k-w1',code:'AltRight'},{c:'Ctrl R',w:'k-w1',code:'ControlRight'},{c:'←',code:'ArrowLeft',w:'k-std'},{c:'↑',code:'ArrowUp',w:'k-std'},{c:'↓',code:'ArrowDown',w:'k-std'},{c:'→',code:'ArrowRight',w:'k-std'} ]
                     ];
 
-                    container.innerHTML = rows.map(r => `<div class="kbd-row">${r.map(k => `<div id="key-${k.code||k.c}" class="key ${k.w}">${k.l||k.c}</div>`).join('')}</div>`).join('');
+                    container.innerHTML = rows.map(r => `<div class="kbd-row">${r.map(k => `<div id="key-${k.code}" class="key ${k.w}">${k.c}</div>`).join('')}</div>`).join('');
 
-                    if(window.appKeyboardListener) {
-                        window.removeEventListener('keydown', window.appKeyboardListener, true);
-                        window.removeEventListener('keyup', window.appKeyboardUpListener, true);
-                    }
+                    if(window.kbdDownListener) { window.removeEventListener('keydown', window.kbdDownListener, true); window.removeEventListener('keyup', window.kbdUpListener, true); }
 
-                    // Strict Intercept
-                    window.appKeyboardListener = (e) => {
-                        e.preventDefault(); 
-                        e.stopPropagation();
-                        
-                        let targetId = e.code;
-                        if(e.key.length === 1 && e.key.match(/[a-z]/i)) targetId = e.key.toUpperCase();
-                        else if(e.key >= '0' && e.key <= '9') targetId = e.key;
-                        else if(['`','-','=','[',']','\\',';','\'',',','.','/'].includes(e.key)) targetId = e.key;
-
-                        const el = document.getElementById(`key-${targetId}`) || document.getElementById(`key-${e.code}`);
+                    window.kbdDownListener = (e) => {
+                        e.preventDefault(); e.stopPropagation();
+                        const el = document.getElementById(`key-${e.code}`);
                         if(el) {
                             el.classList.add('active', 'tested');
-                            app.hardwareLogic.playTone(800, 'both', 'sine', 0.05); // Tiny mechanical click sound
+                            app.hardware.playTone(800, 'both', 'sine', 0.02);
                         }
                         return false;
                     };
-
-                    window.appKeyboardUpListener = (e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        let targetId = e.code;
-                        if(e.key.length === 1 && e.key.match(/[a-z]/i)) targetId = e.key.toUpperCase();
-                        else if(e.key >= '0' && e.key <= '9') targetId = e.key;
-                        else if(['`','-','=','[',']','\\',';','\'',',','.','/'].includes(e.key)) targetId = e.key;
-
-                        const el = document.getElementById(`key-${targetId}`) || document.getElementById(`key-${e.code}`);
+                    window.kbdUpListener = (e) => {
+                        e.preventDefault(); e.stopPropagation();
+                        const el = document.getElementById(`key-${e.code}`);
                         if(el) el.classList.remove('active');
                         return false;
                     };
 
-                    window.addEventListener('keydown', window.appKeyboardListener, true);
-                    window.addEventListener('keyup', window.appKeyboardUpListener, true);
+                    window.addEventListener('keydown', window.kbdDownListener, true);
+                    window.addEventListener('keyup', window.kbdUpListener, true);
                 },
 
-                initMouse: () => {
-                    const area = document.getElementById('mouse-area');
-                    const trail = document.getElementById('mouse-trail');
-                    if(!area) return;
-
-                    const activateBtn = (id) => {
-                        const btn = document.getElementById(id);
-                        btn.classList.replace('bg-zinc-900', 'bg-success');
-                        btn.classList.replace('text-zinc-500', 'text-white');
-                        btn.classList.replace('border-zinc-800', 'border-emerald-500');
-                        btn.classList.add('shadow-[0_0_15px_rgba(16,185,129,0.5)]');
-                    };
-
-                    area.onmousemove = (e) => {
-                        const rect = area.getBoundingClientRect();
-                        trail.style.opacity = '1';
-                        trail.style.left = `${e.clientX - rect.left - 8}px`;
-                        trail.style.top = `${e.clientY - rect.top - 8}px`;
-                        clearTimeout(window.mouseTrailTimeout);
-                        window.mouseTrailTimeout = setTimeout(() => trail.style.opacity = '0', 100);
-                    };
-
-                    area.onmousedown = (e) => {
-                        if(e.button === 0) activateBtn('m-left');
-                        if(e.button === 2) activateBtn('m-right');
-                        if(e.button === 1) activateBtn('m-scroll');
-                        app.hardwareLogic.playTone(1000, 'both', 'square', 0.05);
-                    };
-                    
-                    area.oncontextmenu = e => e.preventDefault();
-                    area.onwheel = (e) => { e.preventDefault(); activateBtn('m-scroll'); };
-                },
-
-                initTouchscreen: () => {
+                touchpad: () => {
                     const canvas = document.getElementById('touch-canvas');
                     if(!canvas) return;
                     const ctx = canvas.getContext('2d');
                     
                     const resize = () => {
-                        canvas.width = canvas.parentElement.clientWidth - 48;
+                        canvas.width = canvas.parentElement.clientWidth - 64; // match padding
                         canvas.height = 400;
-                        ctx.fillStyle = "#09090b";
-                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        app.hardware.clearTouchpad();
                     };
                     resize();
                     window.addEventListener('resize', resize);
 
                     let isDrawing = false;
-                    const startPos = (e) => { isDrawing = true; draw(e); };
-                    const endPos = () => { isDrawing = false; ctx.beginPath(); };
-
                     const draw = (e) => {
                         if(!isDrawing) return;
                         e.preventDefault();
-                        ctx.lineWidth = 6;
+                        ctx.lineWidth = 4;
                         ctx.lineCap = 'round';
-                        ctx.strokeStyle = '#06b6d4'; // Primary cyan
-                        ctx.shadowBlur = 10;
-                        ctx.shadowColor = '#06b6d4';
-
+                        ctx.strokeStyle = '#06b6d4'; 
+                        
                         const rect = canvas.getBoundingClientRect();
                         let clientX = e.clientX || (e.touches && e.touches[0].clientX);
                         let clientY = e.clientY || (e.touches && e.touches[0].clientY);
@@ -724,136 +470,91 @@
                         ctx.moveTo(clientX - rect.left, clientY - rect.top);
                     };
 
-                    canvas.addEventListener('touchstart', startPos);
-                    canvas.addEventListener('touchend', endPos);
-                    canvas.addEventListener('touchmove', draw);
-                    canvas.addEventListener('mousedown', startPos);
-                    canvas.addEventListener('mouseup', endPos);
+                    canvas.addEventListener('mousedown', (e) => { isDrawing = true; draw(e); });
+                    canvas.addEventListener('mouseup', () => { isDrawing = false; ctx.beginPath(); });
                     canvas.addEventListener('mousemove', draw);
+                    canvas.addEventListener('touchstart', (e) => { isDrawing = true; draw(e); });
+                    canvas.addEventListener('touchend', () => { isDrawing = false; ctx.beginPath(); });
+                    canvas.addEventListener('touchmove', draw);
+
+                    // Button Tracker
+                    const flashBtn = (id) => {
+                        const btn = document.getElementById(id);
+                        if(!btn) return;
+                        btn.classList.replace('bg-zinc-900', 'bg-primary');
+                        btn.classList.replace('text-zinc-600', 'text-darker');
+                        setTimeout(() => {
+                            btn.classList.replace('bg-primary', 'bg-zinc-900');
+                            btn.classList.replace('text-darker', 'text-zinc-600');
+                        }, 200);
+                        app.hardware.playTone(1000, 'both', 'square', 0.05);
+                    };
+
+                    canvas.onmousedown = (e) => {
+                        if(e.button === 0) flashBtn('m-left');
+                        if(e.button === 1) flashBtn('m-scroll');
+                        if(e.button === 2) flashBtn('m-right');
+                    };
+                    canvas.oncontextmenu = e => e.preventDefault();
+                    canvas.onwheel = (e) => { e.preventDefault(); flashBtn('m-scroll'); };
                     
-                    app.hardwareLogic.clearCanvas = () => {
-                        ctx.shadowBlur = 0;
+                    app.hardware.clearTouchpad = () => {
                         ctx.fillStyle = "#09090b";
                         ctx.fillRect(0, 0, canvas.width, canvas.height);
                     };
-                },
-
-                initPorts: () => {
-                    const ports = document.querySelectorAll('.port-light');
-                    app.state.portsConnected = 0;
-
-                    const triggerPort = () => {
-                        if(app.state.portsConnected < ports.length) {
-                            ports[app.state.portsConnected].classList.add('on');
-                            app.state.portsConnected++;
-                            app.hardwareLogic.playTone(880, 'both', 'sine', 0.1);
-                            setTimeout(() => app.hardwareLogic.playTone(1100, 'both', 'sine', 0.15), 150);
-                            app.utils.showToast("Hardware Interrupt Detected", "success");
-                        }
-                    };
-
-                    // Listen for Media Devices (Headsets, Webcams)
-                    window.mediaListener = async () => triggerPort();
-                    navigator.mediaDevices?.addEventListener('devicechange', window.mediaListener);
-
-                    // Listen for WebUSB if available
-                    if(navigator.usb) {
-                        window.usbListener = () => triggerPort();
-                        navigator.usb.addEventListener('connect', window.usbListener);
-                    } else {
-                        // Fallback polling for generic controllers if strict USB API blocked
-                        let lastGamepadCount = 0;
-                        setInterval(() => {
-                            if(app.state.currentView !== 'test') return;
-                            const gpCount = Array.from(navigator.getGamepads ? navigator.getGamepads() : []).filter(gp => gp !== null).length;
-                            if(gpCount > lastGamepadCount) triggerPort();
-                            lastGamepadCount = gpCount;
-                        }, 1000);
-                    }
-                },
-
-                startDisplayTest: () => {
-                    const overlay = document.getElementById('display-test-overlay');
-                    const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFFFFF', '#000000'];
-                    let idx = 0;
-                    
-                    overlay.style.display = 'block';
-                    overlay.style.backgroundColor = colors[idx];
-                    if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(()=>{});
-
-                    overlay.onclick = () => {
-                        idx++;
-                        if (idx >= colors.length) {
-                            overlay.style.display = 'none';
-                            if (document.exitFullscreen) document.exitFullscreen().catch(()=>{});
-                        } else {
-                            overlay.style.backgroundColor = colors[idx];
-                        }
-                    };
-
-                    window.appEscapeListener = (e) => {
-                        if (e.key === 'Escape') {
-                            overlay.style.display = 'none';
-                            if (document.exitFullscreen) document.exitFullscreen().catch(()=>{});
-                            window.removeEventListener('keydown', window.appEscapeListener);
-                        }
-                    };
-                    window.addEventListener('keydown', window.appEscapeListener);
-                },
-
-                startCamera: async () => {
-                    try {
-                        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: {ideal: 1920}, height: {ideal: 1080} } });
-                        const video = document.getElementById('webcam-video');
-                        const placeholder = document.getElementById('cam-placeholder');
-                        video.srcObject = stream;
-                        video.classList.remove('hidden');
-                        placeholder.classList.add('hidden');
-                        app.state.activeStreams.push(stream);
-                    } catch (err) {
-                        app.utils.showToast("Sensor access denied. Check hardware lock.", "error");
-                    }
                 },
 
                 startMic: async () => {
                     try {
                         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                         app.state.activeStreams.push(stream);
+                        document.getElementById('mic-overlay').classList.add('hidden');
+                        document.getElementById('mic-icon').classList.replace('text-zinc-600', 'text-success');
                         
+                        const canvas = document.getElementById('mic-canvas');
+                        const ctx = canvas.getContext('2d');
+                        canvas.width = canvas.clientWidth;
+                        canvas.height = canvas.clientHeight;
+
                         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
                         const analyser = audioContext.createAnalyser();
-                        const microphone = audioContext.createMediaStreamSource(stream);
-                        microphone.connect(analyser);
-                        analyser.fftSize = 128;
-                        const dataArray = new Uint8Array(analyser.frequencyBinCount);
-                        
-                        const visualizer = document.getElementById('audio-visualizer');
-                        visualizer.innerHTML = '';
-                        const bars = Array.from({length: 32}, () => {
-                            const bar = document.createElement('div');
-                            bar.className = 'w-full bg-primary rounded-t opacity-90 transition-all duration-75 shadow-[0_0_5px_rgba(6,182,212,0.5)]';
-                            bar.style.height = '5%';
-                            visualizer.appendChild(bar);
-                            return bar;
-                        });
+                        const source = audioContext.createMediaStreamSource(stream);
+                        source.connect(analyser);
+                        analyser.fftSize = 2048;
+                        const bufferLength = analyser.frequencyBinCount;
+                        const dataArray = new Uint8Array(bufferLength);
 
-                        const updateVisuals = () => {
-                            if(app.state.currentView !== 'test' || !app.state.activeStreams.includes(stream)) return;
-                            analyser.getByteFrequencyData(dataArray);
-                            for(let i=0; i<32; i++) {
-                                let val = dataArray[i * 2] / 255;
-                                bars[i].style.height = `${Math.max(5, val * 100)}%`;
-                                bars[i].style.backgroundColor = val > 0.85 ? '#ef4444' : (val > 0.6 ? '#f59e0b' : '#06b6d4');
+                        const draw = () => {
+                            if(app.state.currentTest !== 'mic') return;
+                            app.state.animationFrameId = requestAnimationFrame(draw);
+                            analyser.getByteTimeDomainData(dataArray);
+
+                            ctx.fillStyle = '#000000';
+                            ctx.fillRect(0, 0, canvas.width, canvas.height);
+                            ctx.lineWidth = 2;
+                            ctx.strokeStyle = '#10b981'; // Success green line
+                            ctx.beginPath();
+
+                            const sliceWidth = canvas.width * 1.0 / bufferLength;
+                            let x = 0;
+
+                            for (let i = 0; i < bufferLength; i++) {
+                                const v = dataArray[i] / 128.0;
+                                const y = v * canvas.height / 2;
+                                if (i === 0) ctx.moveTo(x, y);
+                                else ctx.lineTo(x, y);
+                                x += sliceWidth;
                             }
-                            requestAnimationFrame(updateVisuals);
+                            ctx.lineTo(canvas.width, canvas.height / 2);
+                            ctx.stroke();
                         };
-                        updateVisuals();
+                        draw();
                     } catch (err) {
-                        app.utils.showToast("Array access denied.", "error");
+                        app.utils.showToast("Microphone Denied", "Check browser permissions.", "error");
                     }
                 },
 
-                startRecording: async () => {
+                startVoice: async () => {
                     try {
                         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                         app.state.activeStreams.push(stream);
@@ -874,38 +575,113 @@
 
                         app.state.audioRecorder.start();
                         document.getElementById('btn-record').classList.add('animate-pulse', 'shadow-[0_0_20px_rgba(220,38,38,0.8)]');
-                        document.getElementById('btn-record').innerHTML = '<i class="fa-solid fa-circle text-xs align-middle mr-2"></i> Recording...';
+                        document.getElementById('btn-record').innerHTML = '<i class="fa-solid fa-circle text-xs align-middle mr-2 animate-ping"></i> Recording...';
                         document.getElementById('btn-stop').classList.remove('hidden');
                     } catch (err) {
-                        app.utils.showToast("Mic access denied.", "error");
+                        app.utils.showToast("Microphone Denied", "Cannot record without mic access.", "error");
                     }
                 },
 
-                stopRecording: () => {
+                stopVoice: () => {
                     if(app.state.audioRecorder && app.state.audioRecorder.state !== 'inactive') {
                         app.state.audioRecorder.stop();
-                        app.utils.stopActiveHardware(); // Cleanup streams immediately after record
-                        document.getElementById('btn-record').classList.remove('animate-pulse', 'shadow-[0_0_20px_rgba(220,38,38,0.8)]');
-                        document.getElementById('btn-record').innerHTML = '<i class="fa-solid fa-circle text-xs align-middle mr-2"></i> Record Again';
+                        app.utils.stopHardware();
+                        const btnRecord = document.getElementById('btn-record');
+                        btnRecord.classList.remove('animate-pulse', 'shadow-[0_0_20px_rgba(220,38,38,0.8)]');
+                        btnRecord.innerHTML = '<i class="fa-solid fa-circle text-xs align-middle mr-2"></i> Record Again';
                         document.getElementById('btn-stop').classList.add('hidden');
                     }
                 },
 
-                testNetwork: async () => {
-                    const url = document.getElementById('ping-target').value;
-                    const log = document.getElementById('network-log');
-                    log.innerHTML += `<br>> Sending packet to ${url}...`;
-                    log.scrollTop = log.scrollHeight;
-                    
+                startCamera: async () => {
                     try {
-                        const start = performance.now();
-                        await fetch(url, { mode: 'no-cors', cache: 'no-store' }); 
-                        const end = performance.now();
-                        log.innerHTML += `<br><span class="text-success">[OK] Reply received. Latency: ~${Math.round(end - start)}ms.</span>`;
-                    } catch (e) {
-                        log.innerHTML += `<br><span class="text-danger">[FAIL] Packet dropped. Check outbound firewall rules.</span>`;
+                        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: {ideal: 1920}, height: {ideal: 1080} } });
+                        const video = document.getElementById('webcam-video');
+                        video.srcObject = stream;
+                        video.classList.remove('hidden');
+                        document.getElementById('cam-overlay').classList.add('hidden');
+                        app.state.activeStreams.push(stream);
+                        
+                        // Detect resolution once playing
+                        video.onloadedmetadata = () => {
+                            document.getElementById('cam-res').innerText = `Resolution: ${video.videoWidth} x ${video.videoHeight}px`;
+                        };
+                    } catch (err) {
+                        app.utils.showToast("Camera Denied", "Check privacy settings or hardware switch.", "error");
                     }
-                    log.scrollTop = log.scrollHeight;
+                },
+
+                ports: async () => {
+                    const activateLight = (id, colorCls, bgCls) => {
+                        const port = document.getElementById(id);
+                        const bar = document.getElementById(id.replace('port-', 'bar-'));
+                        if(!port) return;
+                        
+                        port.classList.add('on');
+                        port.classList.replace('text-zinc-600', colorCls);
+                        bar.classList.replace('bg-zinc-800', bgCls);
+                        
+                        setTimeout(() => {
+                            port.classList.remove('on');
+                            port.classList.replace(colorCls, 'text-zinc-600');
+                            bar.classList.replace(bgCls, 'bg-zinc-800');
+                        }, 2500);
+                    };
+
+                    // 1. Listen for USB / Type-C (Requires HTTPS / Localhost)
+                    if(navigator.usb) {
+                        window.usbListener = (e) => {
+                            if(app.state.currentTest !== 'ports') return;
+                            app.utils.showToast("USB / Type-C Detected", `Device string: ${e.device?.productName || 'Generic USB Device'}`, "success");
+                            activateLight('port-usb', 'text-primary', 'bg-primary');
+                        };
+                        navigator.usb.addEventListener('connect', window.usbListener);
+                    } else {
+                        document.getElementById('port-usb').innerHTML += `<p class="text-[10px] text-danger absolute top-2 right-2 border border-danger p-1 rounded">API Unsupported</p>`;
+                    }
+
+                    // 2. Listen for Audio Jack (Headsets / Mics)
+                    const countMediaDevices = async () => {
+                        try {
+                            const devs = await navigator.mediaDevices.enumerateDevices();
+                            return {
+                                audio: devs.filter(d => d.kind.includes('audio')).length,
+                                video: devs.filter(d => d.kind.includes('video')).length
+                            };
+                        } catch(e) { return null; }
+                    };
+                    
+                    app.state.cachedDevices = await countMediaDevices();
+
+                    window.mediaListener = async () => {
+                        if(app.state.currentTest !== 'ports') return;
+                        const newCounts = await countMediaDevices();
+                        if(!newCounts || !app.state.cachedDevices) return;
+                        
+                        // If count increased, something was plugged in
+                        if(newCounts.audio > app.state.cachedDevices.audio) {
+                            app.utils.showToast("Audio Jack Detected", "Headphone or Microphone connected.", "success");
+                            activateLight('port-audio', 'text-fuchsia-400', 'bg-fuchsia-400');
+                        } else if (newCounts.video > app.state.cachedDevices.video) {
+                            app.utils.showToast("USB Video Detected", "External webcam connected.", "success");
+                            activateLight('port-usb', 'text-primary', 'bg-primary');
+                        }
+                        app.state.cachedDevices = newCounts;
+                    };
+                    navigator.mediaDevices?.addEventListener('devicechange', window.mediaListener);
+
+                    // 3. Listen for HDMI / External Monitor via Screen/Resize API
+                    let lastWidth = window.screen.width;
+                    window.screenListener = () => {
+                        if(app.state.currentTest !== 'ports') return;
+                        // Checking if total screen area changed or using matchMedia for multiple screens
+                        if(window.screen.width !== lastWidth || (window.screen.isExtended !== undefined && window.screen.isExtended)) {
+                            app.utils.showToast("HDMI / Display Detected", "External monitor connected.", "success");
+                            activateLight('port-hdmi', 'text-warning', 'bg-warning');
+                            lastWidth = window.screen.width;
+                        }
+                    };
+                    window.addEventListener('resize', window.screenListener);
                 },
 
                 playTone: (freq, pan, type='sine', duration=1) => {
@@ -917,11 +693,9 @@
                     osc.type = type;
                     osc.frequency.setValueAtTime(freq, ctx.currentTime);
                     
-                    if(pan === 'left') panner.pan.value = -1;
-                    else if(pan === 'right') panner.pan.value = 1;
-                    else panner.pan.value = 0;
+                    panner.pan.value = (pan === 'left') ? -1 : ((pan === 'right') ? 1 : 0);
 
-                    gain.gain.setValueAtTime(0.5, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.3, ctx.currentTime);
                     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
 
                     osc.connect(panner);
@@ -935,23 +709,10 @@
         };
 
         window.onload = () => {
-            app.navigate('home');
+            // Start on the first test
+            app.navigate('battery');
             
-            // Network Status Indicator updates
-            const updateNetwork = () => {
-                const icon = document.getElementById('wifi-icon');
-                if (navigator.onLine) {
-                    icon.className = 'fa-solid fa-wifi text-primary text-xs drop-shadow-[0_0_5px_rgba(6,182,212,0.8)]';
-                } else {
-                    icon.className = 'fa-solid fa-wifi-slash text-danger text-xs drop-shadow-[0_0_5px_rgba(239,68,68,0.8)]';
-                    app.utils.showToast("Offline Mode Active", "warning");
-                }
-            };
-            window.addEventListener('online', updateNetwork);
-            window.addEventListener('offline', updateNetwork);
-            updateNetwork();
-
-            // Hardware Clock
+            // System Clock Update
             setInterval(() => {
                 const el = document.getElementById('system-clock');
                 if(el) el.innerText = new Date().toLocaleTimeString('en-US', { hour12: false });
