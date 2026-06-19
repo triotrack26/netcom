@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="dashboard">
+
+    <div class="sidebar">
+
+        <h2 id="deviceName"></h2>
+
+        <ul>
+            <li>System Information</li>
+            <li>Camera Test</li>
+            <li>Microphone Test</li>
+            <li>Speaker Test</li>
+            <li>Keyboard Test</li>
+            <li>Battery Test</li>
+            <li>Display Test</li>
+            <li>Port Checker</li>
+            <li>Generate Report</li>
+        </ul>
+
+    </div>
+
+    <div class="content">
+
+        <h1>Welcome</h1>
+
+        <p>
+        Select a module from the sidebar.
+        </p>
+
+    </div>
+
+</div>
+
+<script>
+document.getElementById("deviceName").innerText =
+localStorage.getItem("systemType") || "Device";
+</script>
+
+</body>
+</html>
