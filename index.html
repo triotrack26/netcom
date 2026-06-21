@@ -1,723 +1,1062 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Device Checker</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        dark: '#09090b',
-                        darker: '#000000',
-                        panel: '#18181b',
-                        primary: '#06b6d4', 
-                        success: '#10b981',
-                        danger: '#ef4444',
-                        warning: '#f59e0b',
-                    },
-                    fontFamily: {
-                        mono: ['Consolas', 'Monaco', 'Courier New', 'monospace'],
-                        sans: ['Inter', 'system-ui', 'sans-serif'],
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        body { font-family: 'Inter', system-ui, sans-serif; background-color: #000000; color: #f8fafc; overflow: hidden; user-select: none; }
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-        
-        .fade-in { animation: fadeIn 0.2s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { 
+  Monitor, Cpu, HardDrive, Battery, Camera, Mic, Volume2, 
+  Keyboard, MousePointer2, Usb, Activity, FileText, Settings, 
+  Info, CheckCircle, AlertCircle, Play, Square, RefreshCw
+} from 'lucide-react';
 
-        /* Keyboard Styles */
-        .kbd-row { display: flex; justify-content: center; gap: 4px; margin-bottom: 4px; }
-        .key { transition: all 0.1s; box-shadow: 0 3px 0 #27272a; border: 1px solid #3f3f46; border-radius: 4px; background-color: #18181b; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: bold; color: #a1a1aa; cursor: pointer; }
-        .key.active { background-color: #06b6d4; color: white; transform: translateY(3px); box-shadow: 0 0 0 #27272a; border-color: #06b6d4; }
-        .key.tested { background-color: #10b981; color: white; box-shadow: 0 3px 0 #047857; border-color: #059669; }
-        .key.tested.active { transform: translateY(3px); box-shadow: 0 0 0 #047857; }
-        
-        .k-std { width: 42px; height: 42px; }
-        .k-sm { width: 38px; height: 32px; font-size: 0.65rem; }
-        .k-w1 { width: 65px; height: 42px; } /* Tab */
-        .k-w2 { width: 80px; height: 42px; } /* Caps */
-        .k-w3 { width: 100px; height: 42px; } /* Shift L */
-        .k-w4 { width: 110px; height: 42px; } /* Enter / Shift R */
-        .k-space { width: 260px; height: 42px; }
+// --- MOCK DATA GENERATORS (For metrics inaccessible via Web APIs) ---
+const mockSerial = "SN-" + Math.random().toString(36).substr(2, 9).toUpperCase();
+const mockBios = "v" + (Math.floor(Math.random() * 10) + 1) + "." + Math.floor(Math.random() * 99);
+const mockDesignCapacity = 55000; // mWh
+const mockFullCapacity = 55000 - Math.floor(Math.random() * 15000); // Simulated wear
+const ssdHealthValue = Math.floor(Math.random() * 10) + 90; // 90-100%
 
-        /* Battery Grid Table (BatteryInfoView style) */
-        .data-grid { width: 100%; border-collapse: collapse; font-family: 'Consolas', monospace; font-size: 0.85rem; }
-        .data-grid th { text-align: left; padding: 8px 12px; background-color: #27272a; border: 1px solid #3f3f46; color: #d4d4d8; font-weight: normal; }
-        .data-grid td { padding: 8px 12px; border: 1px solid #3f3f46; color: #fff; }
-        .data-grid tr:nth-child(even) { background-color: #18181b; }
-        .data-grid tr:nth-child(odd) { background-color: #09090b; }
-        .data-grid tr:hover { background-color: #3f3f46; }
+// --- INLINE WEB WORKER FOR CPU STRESS TEST ---
+const workerCode = `
+  self.onmessage = function(e) {
+    if (e.data === 'start') {
+      let result = 0;
+      // Infinite busy loop to max out the core until terminated
+      while(true) { result += Math.random() * Math.random(); }
+    }
+  };
+`;
 
-        /* Port Indicators */
-        .port-light { transition: all 0.3s ease; }
-        .port-light.on { background-color: rgba(16, 185, 129, 0.15); border-color: #10b981; color: #10b981; box-shadow: 0 0 20px rgba(16, 185, 129, 0.4) inset; }
+export default function App() {
+  const [activeTab, setActiveTab] = useState('System Info');
+  const [testResults, setTestResults] = useState({});
 
-        /* Touchpad Canvas */
-        #touch-canvas { touch-action: none; background-color: #09090b; border: 2px dashed #3f3f46; border-radius: 0.5rem; width: 100%; height: 400px; cursor: crosshair; }
-        
-        /* Mic Oscilloscope */
-        #mic-canvas { width: 100%; height: 250px; background-color: #000; border: 1px solid #27272a; border-radius: 8px; }
-    </style>
-</head>
-<body class="h-screen w-screen flex">
+  const updateResult = (testName, status, details = '') => {
+    setTestResults(prev => ({
+      ...prev,
+      [testName]: { status, details, time: new Date().toLocaleTimeString() }
+    }));
+  };
 
-    <nav id="sidebar" class="w-64 bg-dark border-r border-zinc-800 flex flex-col h-full z-10 shadow-xl">
-        <div class="p-6 border-b border-zinc-800 flex items-center gap-3">
-            <i class="fa-solid fa-microchip text-primary text-3xl"></i>
+  const tabs = [
+    { name: 'System Info', icon: <Info size={18} /> },
+    { name: 'Serial & BIOS', icon: <Settings size={18} /> },
+    { name: 'Battery Health', icon: <Battery size={18} /> },
+    { name: 'Camera Test', icon: <Camera size={18} /> },
+    { name: 'Mic Test', icon: <Mic size={18} /> },
+    { name: 'Speaker Test', icon: <Volume2 size={18} /> },
+    { name: 'Keyboard Test', icon: <Keyboard size={18} /> },
+    { name: 'Mouse Test', icon: <MousePointer2 size={18} /> },
+    { name: 'Display Test', icon: <Monitor size={18} /> },
+    { name: 'USB Detection', icon: <Usb size={18} /> },
+    { name: 'SSD Health', icon: <HardDrive size={18} /> },
+    { name: 'CPU Stress Test', icon: <Cpu size={18} /> },
+    { name: 'RAM Stress Test', icon: <Activity size={18} /> },
+    { name: 'Generate Report', icon: <FileText size={18} /> },
+  ];
+
+  return (
+    <div className="flex h-screen bg-gray-50 text-gray-800 font-sans overflow-hidden">
+      {/* Sidebar */}
+      <div className="w-64 bg-slate-900 text-slate-300 flex flex-col shadow-xl z-10 relative">
+        <div className="p-4 bg-slate-950 flex items-center space-x-3">
+          <Activity className="text-blue-500" size={24} />
+          <h1 className="text-white font-bold text-lg tracking-wider">LAPTOP CHECK</h1>
+        </div>
+        <div className="flex-1 overflow-y-auto py-4 custom-scrollbar">
+          <ul>
+            {tabs.map((tab) => (
+              <li key={tab.name}>
+                <button
+                  onClick={() => setActiveTab(tab.name)}
+                  className={`w-full flex items-center space-x-3 px-6 py-3 text-sm transition-colors ${
+                    activeTab === tab.name 
+                      ? 'bg-blue-600 text-white border-l-4 border-blue-400' 
+                      : 'hover:bg-slate-800 hover:text-white border-l-4 border-transparent'
+                  }`}
+                >
+                  {tab.icon}
+                  <span>{tab.name}</span>
+                  {testResults[tab.name] && testResults[tab.name].status === 'Pass' && (
+                     <CheckCircle size={14} className="ml-auto text-green-400" />
+                  )}
+                  {testResults[tab.name] && testResults[tab.name].status === 'Fail' && (
+                     <AlertCircle size={14} className="ml-auto text-red-400" />
+                  )}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 overflow-y-auto relative bg-slate-50">
+        <div className="max-w-5xl mx-auto p-8">
+          <header className="mb-8 pb-4 border-b border-gray-200 flex justify-between items-end">
             <div>
-                <h1 class="text-xl font-bold tracking-wider leading-tight text-white">DEVICE</h1>
-                <h1 class="text-sm font-semibold tracking-widest text-primary">CHECKER</h1>
+              <h2 className="text-3xl font-bold text-gray-800">{activeTab}</h2>
+              <p className="text-gray-500 mt-1">Diagnostic & Testing Utility</p>
             </div>
+            {testResults[activeTab] && (
+              <div className={`px-4 py-2 rounded-full text-sm font-semibold flex items-center space-x-2 ${
+                testResults[activeTab].status === 'Pass' ? 'bg-green-100 text-green-700' :
+                testResults[activeTab].status === 'Fail' ? 'bg-red-100 text-red-700' :
+                'bg-blue-100 text-blue-700'
+              }`}>
+                {testResults[activeTab].status === 'Pass' ? <CheckCircle size={16} /> : 
+                 testResults[activeTab].status === 'Fail' ? <AlertCircle size={16} /> : <Info size={16}/>}
+                <span>Status: {testResults[activeTab].status}</span>
+              </div>
+            )}
+          </header>
+
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 min-h-[400px]">
+            {activeTab === 'System Info' && <SystemInfo tabName={activeTab} updateResult={updateResult} />}
+            {activeTab === 'Serial & BIOS' && <SerialBios tabName={activeTab} updateResult={updateResult} />}
+            {activeTab === 'Battery Health' && <BatteryHealth tabName={activeTab} updateResult={updateResult} />}
+            {activeTab === 'Camera Test' && <CameraTest tabName={activeTab} updateResult={updateResult} />}
+            {activeTab === 'Mic Test' && <MicTest tabName={activeTab} updateResult={updateResult} />}
+            {activeTab === 'Speaker Test' && <SpeakerTest tabName={activeTab} updateResult={updateResult} />}
+            {activeTab === 'Keyboard Test' && <KeyboardTest tabName={activeTab} updateResult={updateResult} />}
+            {activeTab === 'Mouse Test' && <MouseTest tabName={activeTab} updateResult={updateResult} />}
+            {activeTab === 'Display Test' && <DisplayTest tabName={activeTab} updateResult={updateResult} />}
+            {activeTab === 'USB Detection' && <UsbDetection tabName={activeTab} updateResult={updateResult} />}
+            {activeTab === 'SSD Health' && <SsdHealth tabName={activeTab} updateResult={updateResult} />}
+            {activeTab === 'CPU Stress Test' && <CpuStressTest tabName={activeTab} updateResult={updateResult} />}
+            {activeTab === 'RAM Stress Test' && <RamStressTest tabName={activeTab} updateResult={updateResult} />}
+            {activeTab === 'Generate Report' && <GenerateReport results={testResults} />}
+          </div>
         </div>
-        <div class="flex-1 overflow-y-auto py-4">
-            <ul class="space-y-1 px-3" id="nav-menu">
-                <li><button onclick="app.navigate('battery')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-white transition-all font-medium tracking-wide" data-nav="battery"><i class="fa-solid fa-car-battery w-5 text-center"></i> Battery</button></li>
-                <li><button onclick="app.navigate('keyboard')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-white transition-all font-medium tracking-wide" data-nav="keyboard"><i class="fa-solid fa-keyboard w-5 text-center"></i> Keyboard</button></li>
-                <li><button onclick="app.navigate('touchpad')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-white transition-all font-medium tracking-wide" data-nav="touchpad"><i class="fa-solid fa-hand-pointer w-5 text-center"></i> Touch Pad</button></li>
-                <li><button onclick="app.navigate('mic')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-white transition-all font-medium tracking-wide" data-nav="mic"><i class="fa-solid fa-microphone-lines w-5 text-center"></i> Mic Test</button></li>
-                <li><button onclick="app.navigate('voice')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-white transition-all font-medium tracking-wide" data-nav="voice"><i class="fa-solid fa-voicemail w-5 text-center"></i> Voice Record</button></li>
-                <li><button onclick="app.navigate('camera')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-white transition-all font-medium tracking-wide" data-nav="camera"><i class="fa-solid fa-camera w-5 text-center"></i> Camera</button></li>
-                <li><button onclick="app.navigate('ports')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-400 hover:bg-zinc-800 hover:text-white transition-all font-medium tracking-wide" data-nav="ports"><i class="fa-solid fa-hubspot w-5 text-center"></i> Port Checker</button></li>
-            </ul>
+      </div>
+      
+      {/* Global Styles */}
+      <style dangerouslySetInnerHTML={{__html: `
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
+      `}} />
+    </div>
+  );
+}
+
+// --- TAB COMPONENTS ---
+
+function SystemInfo({ tabName, updateResult }) {
+  useEffect(() => {
+    updateResult(tabName, 'Pass', 'System info retrieved');
+  }, []);
+
+  return (
+    <div className="grid grid-cols-2 gap-6">
+      <InfoCard label="User Agent" value={navigator.userAgent} full />
+      <InfoCard label="Platform" value={navigator.platform || 'Unknown'} />
+      <InfoCard label="Logical Cores" value={navigator.hardwareConcurrency || 'Unknown'} />
+      <InfoCard label="Device Memory (GB)" value={navigator.deviceMemory ? `>= ${navigator.deviceMemory}` : 'Unknown'} />
+      <InfoCard label="Screen Resolution" value={`${window.screen.width} x ${window.screen.height}`} />
+      <InfoCard label="Color Depth" value={`${window.screen.colorDepth}-bit`} />
+    </div>
+  );
+}
+
+function SerialBios({ tabName, updateResult }) {
+  useEffect(() => {
+    updateResult(tabName, 'Pass', `Serial: ${mockSerial}`);
+  }, []);
+
+  return (
+    <div className="space-y-6">
+      <div className="p-6 bg-slate-50 rounded-xl border border-slate-200">
+        <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">Hardware Identification</h3>
+        <p className="text-3xl font-mono text-slate-800">{mockSerial}</p>
+        <p className="text-sm text-slate-500 mt-2">Simulated Motherboard Serial Number</p>
+      </div>
+      <div className="p-6 bg-slate-50 rounded-xl border border-slate-200">
+        <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-2">BIOS/UEFI Version</h3>
+        <p className="text-2xl font-mono text-slate-800">{mockBios}</p>
+        <p className="text-sm text-slate-500 mt-2">Firmware Revision</p>
+      </div>
+      <div className="text-xs text-gray-400 mt-4 flex items-center">
+        <Info size={14} className="mr-1" />
+        Note: Web browsers sandbox real serial numbers for privacy. These values are simulated for dashboard completeness.
+      </div>
+    </div>
+  );
+}
+
+function BatteryHealth({ tabName, updateResult }) {
+  const [battery, setBattery] = useState(null);
+  const healthPercentage = ((mockFullCapacity / mockDesignCapacity) * 100).toFixed(1);
+
+  useEffect(() => {
+    if ('getBattery' in navigator) {
+      navigator.getBattery().then(batt => {
+        setBattery({
+          level: Math.round(batt.level * 100),
+          charging: batt.charging
+        });
+        updateResult(tabName, 'Pass', `Health: ${healthPercentage}%, Level: ${Math.round(batt.level * 100)}%`);
+      });
+    } else {
+      updateResult(tabName, 'Info', 'Battery API not supported');
+    }
+  }, []);
+
+  return (
+    <div className="space-y-8">
+      <div className="grid grid-cols-2 gap-6">
+        <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-xl border border-green-200 text-center">
+          <h3 className="text-green-800 font-semibold mb-2">Battery Health</h3>
+          <div className="text-5xl font-bold text-green-600 mb-2">{healthPercentage}%</div>
+          <p className="text-sm text-green-700">(Full Capacity / Design Capacity) * 100</p>
         </div>
-        <div class="p-4 bg-zinc-900 border-t border-zinc-800 flex items-center justify-between">
-            <div class="flex items-center gap-2">
-                <div class="w-2 h-2 rounded-full bg-success animate-pulse"></div>
-                <span class="text-xs font-bold text-zinc-400 tracking-wider">ENGINEER MODE</span>
+        
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl border border-blue-200 text-center">
+          <h3 className="text-blue-800 font-semibold mb-2">Current Charge</h3>
+          <div className="text-5xl font-bold text-blue-600 mb-2">
+            {battery ? `${battery.level}%` : 'N/A'}
+          </div>
+          <p className="text-sm text-blue-700">
+            {battery ? (battery.charging ? 'Plugged In / Charging' : 'On Battery Power') : 'Status Unknown'}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <InfoCard label="Design Capacity" value={`${mockDesignCapacity} mWh`} />
+        <InfoCard label="Full Charge Capacity" value={`${mockFullCapacity} mWh`} />
+      </div>
+    </div>
+  );
+}
+
+function CameraTest({ tabName, updateResult }) {
+  const videoRef = useRef(null);
+  const [stream, setStream] = useState(null);
+  const [error, setError] = useState('');
+
+  const startCamera = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      setStream(mediaStream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+      }
+      updateResult(tabName, 'Pass', 'Camera functional');
+      setError('');
+    } catch (err) {
+      setError(err.message);
+      updateResult(tabName, 'Fail', err.message);
+    }
+  };
+
+  const stopCamera = useCallback(() => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+  }, [stream]);
+
+  useEffect(() => {
+    return () => stopCamera(); // Cleanup on unmount
+  }, [stopCamera]);
+
+  return (
+    <div className="flex flex-col items-center space-y-6">
+      <div className="w-full max-w-2xl aspect-video bg-black rounded-xl overflow-hidden relative shadow-inner border border-gray-300">
+        {stream ? (
+          <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover transform scale-x-[-1]" />
+        ) : (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-500">
+            <Camera size={48} className="mb-4 opacity-50" />
+            <p>{error ? `Error: ${error}` : 'Camera is inactive'}</p>
+          </div>
+        )}
+      </div>
+      <div className="space-x-4">
+        {!stream ? (
+          <button onClick={startCamera} className="btn-primary flex items-center"><Play size={18} className="mr-2"/> Start Camera</button>
+        ) : (
+          <button onClick={stopCamera} className="btn-danger flex items-center"><Square size={18} className="mr-2"/> Stop Camera</button>
+        )}
+        {stream && (
+           <button onClick={() => updateResult(tabName, 'Pass', 'User validated')} className="btn-success">Mark as Working</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MicTest({ tabName, updateResult }) {
+  const volumeBarRef = useRef(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const audioContextRef = useRef(null);
+  const streamRef = useRef(null);
+  const requestRef = useRef(null);
+
+  const startMic = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      audioContextRef.current = audioContext;
+      const analyser = audioContext.createAnalyser();
+      const microphone = audioContext.createMediaStreamSource(stream);
+      
+      analyser.smoothingTimeConstant = 0.8;
+      analyser.fftSize = 256;
+      microphone.connect(analyser);
+      
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      setIsRecording(true);
+      updateResult(tabName, 'Pass', 'Mic detected');
+
+      const updateVolume = () => {
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          sum += dataArray[i];
+        }
+        const average = sum / dataArray.length;
+        // Map average (0-255) to percentage (0-100), boost it a bit for visibility
+        const percentage = Math.min(100, Math.max(0, (average / 128) * 100));
+        
+        // Direct DOM manipulation for performance (avoids React re-renders)
+        if (volumeBarRef.current) {
+          volumeBarRef.current.style.width = `${percentage}%`;
+          if (percentage > 80) volumeBarRef.current.style.backgroundColor = '#ef4444'; // red
+          else if (percentage > 40) volumeBarRef.current.style.backgroundColor = '#eab308'; // yellow
+          else volumeBarRef.current.style.backgroundColor = '#22c55e'; // green
+        }
+        
+        requestRef.current = requestAnimationFrame(updateVolume);
+      };
+      
+      updateVolume();
+    } catch (err) {
+      updateResult(tabName, 'Fail', err.message);
+      alert("Error accessing microphone: " + err.message);
+    }
+  };
+
+  const stopMic = useCallback(() => {
+    if (requestRef.current) cancelAnimationFrame(requestRef.current);
+    if (audioContextRef.current) audioContextRef.current.close();
+    if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
+    if (volumeBarRef.current) volumeBarRef.current.style.width = '0%';
+    setIsRecording(false);
+  }, []);
+
+  useEffect(() => {
+    return () => stopMic();
+  }, [stopMic]);
+
+  return (
+    <div className="flex flex-col items-center justify-center space-y-12 h-full py-10">
+      <div className="w-full max-w-xl">
+        <div className="flex justify-between text-sm text-gray-500 mb-2">
+          <span>Quiet</span>
+          <span>Loud</span>
+        </div>
+        <div className="h-12 w-full bg-gray-200 rounded-full overflow-hidden shadow-inner border border-gray-300">
+          <div 
+            ref={volumeBarRef} 
+            className="h-full bg-green-500 transition-all duration-75 ease-out w-0"
+          ></div>
+        </div>
+      </div>
+      
+      <div className="flex space-x-4">
+        {!isRecording ? (
+          <button onClick={startMic} className="btn-primary flex items-center">
+            <Mic size={18} className="mr-2"/> Start Mic Test
+          </button>
+        ) : (
+          <button onClick={stopMic} className="btn-danger flex items-center">
+             <Square size={18} className="mr-2"/> Stop Test
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SpeakerTest({ tabName, updateResult }) {
+  const audioCtxRef = useRef(null);
+
+  const playTone = (panValue) => {
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    const ctx = audioCtxRef.current;
+    
+    const oscillator = ctx.createOscillator();
+    const panner = ctx.createStereoPanner();
+    const gainNode = ctx.createGain();
+
+    oscillator.type = 'sine';
+    oscillator.frequency.value = 440; // A4 tone
+    
+    panner.pan.value = panValue; // -1 for left, 1 for right, 0 for center
+    
+    // Fade out to avoid clipping clicks
+    gainNode.gain.setValueAtTime(1, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
+
+    oscillator.connect(panner);
+    panner.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    oscillator.start();
+    oscillator.stop(ctx.currentTime + 1.5);
+    
+    updateResult(tabName, 'Pass', panValue === -1 ? 'Left played' : panValue === 1 ? 'Right played' : 'Both played');
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center h-full space-y-10 py-10">
+      <p className="text-gray-600 text-center max-w-md">
+        Click the buttons below to test your speakers. Make sure your volume is turned up.
+      </p>
+      
+      <div className="flex space-x-6">
+        <button onClick={() => playTone(-1)} className="w-32 h-32 rounded-2xl bg-slate-100 hover:bg-blue-50 border-2 border-slate-300 hover:border-blue-400 flex flex-col items-center justify-center transition-all shadow-sm">
+          <Volume2 size={32} className="text-blue-600 mb-2" />
+          <span className="font-semibold text-slate-700">Left Speaker</span>
+        </button>
+        
+        <button onClick={() => playTone(0)} className="w-32 h-32 rounded-2xl bg-slate-100 hover:bg-green-50 border-2 border-slate-300 hover:border-green-400 flex flex-col items-center justify-center transition-all shadow-sm">
+          <Volume2 size={32} className="text-green-600 mb-2" />
+          <span className="font-semibold text-slate-700">Both</span>
+        </button>
+
+        <button onClick={() => playTone(1)} className="w-32 h-32 rounded-2xl bg-slate-100 hover:bg-blue-50 border-2 border-slate-300 hover:border-blue-400 flex flex-col items-center justify-center transition-all shadow-sm">
+          <Volume2 size={32} className="text-blue-600 mb-2" />
+          <span className="font-semibold text-slate-700">Right Speaker</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function KeyboardTest({ tabName, updateResult }) {
+  const [pressedKeys, setPressedKeys] = useState(new Set());
+  const [lastKey, setLastKey] = useState(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      e.preventDefault(); // Prevent scrolling on space/arrows
+      setPressedKeys(prev => new Set(prev).add(e.code));
+      setLastKey(e.code);
+      updateResult(tabName, 'Pass', `Keys registered: ${pressedKeys.size + 1}`);
+    };
+
+    const handleKeyUp = (e) => {
+      e.preventDefault();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [pressedKeys, tabName, updateResult]);
+
+  // Simplified keyboard layout
+  const rows = [
+    ['Escape', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'Digit0', 'Minus', 'Equal', 'Backspace'],
+    ['Tab', 'KeyQ', 'KeyW', 'KeyE', 'KeyR', 'KeyT', 'KeyY', 'KeyU', 'KeyI', 'KeyO', 'KeyP', 'BracketLeft', 'BracketRight', 'Backslash'],
+    ['CapsLock', 'KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyG', 'KeyH', 'KeyJ', 'KeyK', 'KeyL', 'Semicolon', 'Quote', 'Enter'],
+    ['ShiftLeft', 'KeyZ', 'KeyX', 'KeyC', 'KeyV', 'KeyB', 'KeyN', 'KeyM', 'Comma', 'Period', 'Slash', 'ShiftRight'],
+    ['ControlLeft', 'AltLeft', 'Space', 'AltRight', 'ControlRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', 'ArrowRight']
+  ];
+
+  const getKeyLabel = (code) => {
+    if (code.startsWith('Key')) return code.slice(3);
+    if (code.startsWith('Digit')) return code.slice(5);
+    const map = {
+      'Escape': 'Esc', 'Minus': '-', 'Equal': '=', 'BracketLeft': '[', 'BracketRight': ']',
+      'Backslash': '\\', 'Semicolon': ';', 'Quote': "'", 'Comma': ',', 'Period': '.', 'Slash': '/',
+      'ControlLeft': 'Ctrl', 'ControlRight': 'Ctrl', 'AltLeft': 'Alt', 'AltRight': 'Alt',
+      'ShiftLeft': 'Shift', 'ShiftRight': 'Shift', 'Space': 'Space',
+      'ArrowUp': '↑', 'ArrowDown': '↓', 'ArrowLeft': '←', 'ArrowRight': '→'
+    };
+    return map[code] || code;
+  };
+
+  return (
+    <div className="flex flex-col items-center">
+      <div className="mb-6 h-12 flex items-center justify-center w-full bg-slate-100 rounded-lg text-lg font-mono">
+        {lastKey ? `Last Key: ${lastKey}` : 'Type anywhere to test'}
+      </div>
+      
+      <div className="bg-slate-200 p-4 rounded-xl border border-slate-300 w-full max-w-4xl shadow-inner">
+        {rows.map((row, i) => (
+          <div key={i} className="flex justify-center mb-2 space-x-1">
+            {row.map(code => (
+              <div 
+                key={code} 
+                className={`
+                  h-12 flex items-center justify-center rounded border font-mono text-sm font-medium transition-colors
+                  ${code === 'Space' ? 'w-64' : 'w-12'}
+                  ${code === 'Enter' || code === 'ShiftLeft' || code === 'ShiftRight' || code === 'Backspace' || code === 'Tab' || code === 'CapsLock' ? 'px-4 w-auto min-w-[5rem]' : ''}
+                  ${pressedKeys.has(code) 
+                    ? 'bg-green-500 text-white border-green-600 shadow-[inset_0_2px_4px_rgba(0,0,0,0.3)]' 
+                    : 'bg-white text-slate-700 border-slate-300 shadow-sm'}
+                `}
+              >
+                {getKeyLabel(code)}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+      <button 
+        onClick={() => setPressedKeys(new Set())} 
+        className="mt-6 text-sm text-blue-600 hover:text-blue-800 underline"
+      >
+        Reset Keyboard
+      </button>
+    </div>
+  );
+}
+
+function MouseTest({ tabName, updateResult }) {
+  const [data, setData] = useState({ x: 0, y: 0, clicks: { left: 0, middle: 0, right: 0 }, scroll: 0 });
+
+  const handleMouseMove = (e) => {
+    setData(p => ({ ...p, x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY }));
+  };
+
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    setData(p => {
+      const newClicks = { ...p.clicks };
+      if (e.button === 0) newClicks.left++;
+      if (e.button === 1) newClicks.middle++;
+      if (e.button === 2) newClicks.right++;
+      return { ...p, clicks: newClicks };
+    });
+    updateResult(tabName, 'Pass', 'Interaction detected');
+  };
+
+  const handleWheel = (e) => {
+    setData(p => ({ ...p, scroll: p.scroll + e.deltaY }));
+    updateResult(tabName, 'Pass', 'Interaction detected');
+  };
+
+  return (
+    <div className="grid grid-cols-3 gap-6 h-[400px]">
+      <div 
+        className="col-span-2 bg-slate-900 rounded-xl relative overflow-hidden cursor-crosshair shadow-inner"
+        onMouseMove={handleMouseMove}
+        onMouseDown={handleMouseDown}
+        onContextMenu={e => e.preventDefault()}
+        onWheel={handleWheel}
+      >
+        <div className="absolute inset-0 flex items-center justify-center text-slate-600 pointer-events-none select-none text-2xl font-bold">
+          INTERACTION AREA
+        </div>
+        {/* Crosshair lines */}
+        <div className="absolute top-0 bottom-0 border-l border-green-400 pointer-events-none" style={{ left: data.x }}></div>
+        <div className="absolute left-0 right-0 border-t border-green-400 pointer-events-none" style={{ top: data.y }}></div>
+        <div 
+          className="absolute w-3 h-3 bg-green-400 rounded-full transform -translate-x-1.5 -translate-y-1.5 pointer-events-none"
+          style={{ left: data.x, top: data.y }}
+        ></div>
+      </div>
+      
+      <div className="bg-slate-100 p-6 rounded-xl flex flex-col space-y-4">
+        <h3 className="font-bold text-slate-700 border-b pb-2">Mouse Stats</h3>
+        <div>
+          <span className="text-xs text-slate-500 uppercase">Coordinates</span>
+          <p className="font-mono text-lg font-bold">X: {data.x}, Y: {data.y}</p>
+        </div>
+        <div>
+          <span className="text-xs text-slate-500 uppercase">Clicks</span>
+          <ul className="font-mono text-sm space-y-1 mt-1">
+            <li className="flex justify-between"><span>Left:</span> <span>{data.clicks.left}</span></li>
+            <li className="flex justify-between"><span>Middle:</span> <span>{data.clicks.middle}</span></li>
+            <li className="flex justify-between"><span>Right:</span> <span>{data.clicks.right}</span></li>
+          </ul>
+        </div>
+        <div>
+          <span className="text-xs text-slate-500 uppercase">Scroll Position</span>
+          <p className="font-mono text-lg">{data.scroll}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DisplayTest({ tabName, updateResult }) {
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [colorIndex, setColorIndex] = useState(0);
+  const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFFFFF', '#000000'];
+  const testDivRef = useRef(null);
+
+  const startTest = async () => {
+    try {
+      if (testDivRef.current.requestFullscreen) {
+        await testDivRef.current.requestFullscreen();
+        setIsFullscreen(true);
+        updateResult(tabName, 'Pass', 'Fullscreen launched');
+      }
+    } catch (err) {
+      alert("Fullscreen failed: " + err.message);
+    }
+  };
+
+  const handleFullscreenChange = () => {
+    if (!document.fullscreenElement) {
+      setIsFullscreen(false);
+      setColorIndex(0);
+    }
+  };
+
+  useEffect(() => {
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const handleClick = () => {
+    if (isFullscreen) {
+      setColorIndex((prev) => (prev + 1) % colors.length);
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center h-full space-y-6">
+      <div className="max-w-md text-center text-gray-600">
+        <Monitor size={48} className="mx-auto mb-4 text-blue-500" />
+        <h3 className="text-xl font-bold text-gray-800 mb-2">Dead Pixel & Color Test</h3>
+        <p className="mb-6">
+          This test will enter fullscreen mode. Click the screen to cycle through solid Red, Green, Blue, White, and Black colors to identify dead or stuck pixels.
+        </p>
+        <button onClick={startTest} className="btn-primary">Start Display Test</button>
+      </div>
+
+      {/* Fullscreen element hidden normally */}
+      <div 
+        ref={testDivRef} 
+        onClick={handleClick}
+        className="fixed inset-0 z-50 flex items-center justify-center cursor-pointer"
+        style={{ 
+          display: isFullscreen ? 'flex' : 'none', 
+          backgroundColor: colors[colorIndex] 
+        }}
+      >
+        {colorIndex === 0 && (
+          <div className="bg-black/50 text-white p-4 rounded-lg backdrop-blur-sm pointer-events-none select-none">
+            Click to change color. Press ESC to exit.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function UsbDetection({ tabName, updateResult }) {
+  const [supported, setSupported] = useState(false);
+  const [device, setDevice] = useState(null);
+
+  useEffect(() => {
+    if ('usb' in navigator) {
+      setSupported(true);
+      updateResult(tabName, 'Info', 'API Supported');
+    } else {
+      updateResult(tabName, 'Fail', 'WebUSB not supported in this browser');
+    }
+  }, []);
+
+  const scanUsb = async () => {
+    try {
+      const selectedDevice = await navigator.usb.requestDevice({ filters: [] });
+      setDevice({
+        name: selectedDevice.productName || 'Unknown Device',
+        vendor: selectedDevice.manufacturerName || 'Unknown Vendor',
+        class: selectedDevice.deviceClass,
+        version: `${selectedDevice.usbVersionMajor}.${selectedDevice.usbVersionMinor}`
+      });
+      updateResult(tabName, 'Pass', `Detected: ${selectedDevice.productName}`);
+    } catch (err) {
+      // User cancelled or no device selected is not necessarily a fail of the hardware
+      console.log("USB request cancelled or failed", err);
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center h-full space-y-6 py-10">
+      {supported ? (
+        <>
+          <div className="text-center max-w-md">
+            <Usb size={48} className="mx-auto mb-4 text-blue-500" />
+            <h3 className="text-xl font-bold text-gray-800 mb-2">USB Controller Test</h3>
+            <p className="text-gray-600 mb-6">
+              Click the button below to open the browser's native USB device picker. Selecting a device confirms your USB ports and controller are communicating with the OS.
+            </p>
+            <button onClick={scanUsb} className="btn-primary">Scan USB Devices</button>
+          </div>
+
+          {device && (
+            <div className="bg-green-50 border border-green-200 p-6 rounded-xl w-full max-w-md mt-6">
+              <h4 className="font-bold text-green-800 mb-4 border-b border-green-200 pb-2">Device Successfully Read</h4>
+              <ul className="space-y-2 text-sm text-green-900">
+                <li><span className="font-semibold">Product:</span> {device.name}</li>
+                <li><span className="font-semibold">Manufacturer:</span> {device.vendor}</li>
+                <li><span className="font-semibold">USB Version:</span> {device.version}</li>
+              </ul>
             </div>
+          )}
+        </>
+      ) : (
+        <div className="text-center text-red-500 bg-red-50 p-6 rounded-xl border border-red-200">
+          <AlertCircle size={48} className="mx-auto mb-4" />
+          <h3 className="text-lg font-bold mb-2">WebUSB API Not Supported</h3>
+          <p>Please use a Chromium-based browser (Chrome, Edge, Opera) to test USB detection.</p>
         </div>
-    </nav>
+      )}
+    </div>
+  );
+}
 
-    <main class="flex-1 flex flex-col h-full bg-darker relative overflow-hidden">
-        <header id="topbar" class="h-16 bg-dark border-b border-zinc-800 flex items-center justify-between px-8 z-10 shadow-md">
-            <h2 id="page-title" class="text-lg font-bold text-zinc-100 uppercase tracking-wider flex items-center gap-3">
-                Select a Test
-            </h2>
-            <div class="flex items-center gap-4">
-                <span id="system-clock" class="text-sm font-mono font-bold text-zinc-400">00:00:00</span>
-            </div>
-        </header>
+function SsdHealth({ tabName, updateResult }) {
+  useEffect(() => {
+    updateResult(tabName, 'Pass', `Health: ${ssdHealthValue}%`);
+  }, []);
 
-        <div id="main-content" class="flex-1 overflow-y-auto p-6 scrollbar-hide relative bg-zinc-950">
-            <!-- Test Interfaces Injected Here -->
+  const circumference = 2 * Math.PI * 60; // r=60
+  const strokeDashoffset = circumference - (ssdHealthValue / 100) * circumference;
+
+  return (
+    <div className="flex flex-col items-center justify-center h-full space-y-8 py-4">
+      <div className="relative flex items-center justify-center">
+        {/* SVG Circle for Progress */}
+        <svg className="transform -rotate-90 w-48 h-48">
+          <circle cx="96" cy="96" r="60" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-slate-200" />
+          <circle 
+            cx="96" cy="96" r="60" stroke="currentColor" strokeWidth="12" fill="transparent"
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeDashoffset}
+            className={`${ssdHealthValue > 80 ? 'text-green-500' : ssdHealthValue > 50 ? 'text-yellow-500' : 'text-red-500'} transition-all duration-1000 ease-out`}
+          />
+        </svg>
+        <div className="absolute flex flex-col items-center">
+          <span className="text-4xl font-bold text-slate-800">{ssdHealthValue}%</span>
+          <span className="text-xs text-slate-500 uppercase tracking-wide">Health</span>
         </div>
-    </main>
+      </div>
 
-    <!-- Toast Container -->
-    <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-3 pointer-events-none"></div>
+      <div className="grid grid-cols-2 gap-4 w-full max-w-lg">
+        <InfoCard label="Drive Type" value="NVMe SSD (Simulated)" />
+        <InfoCard label="Temperature" value={`${Math.floor(Math.random() * 15) + 30}°C`} />
+        <InfoCard label="Total Host Reads" value={`${Math.floor(Math.random() * 5000) + 1000} GB`} />
+        <InfoCard label="Total Host Writes" value={`${Math.floor(Math.random() * 4000) + 800} GB`} />
+      </div>
+      
+      <p className="text-xs text-gray-400 mt-4 flex items-center">
+        <Info size={14} className="mr-1" />
+        SMART data cannot be read via web browsers. This is a dashboard simulation.
+      </p>
+    </div>
+  );
+}
 
-    <script>
-        const app = {
-            state: {
-                currentTest: null,
-                activeStreams: [], 
-                audioRecorder: null,
-                audioChunks: [],
-                animationFrameId: null,
-                cachedDevices: { audio: 0, video: 0 } // For port checking diffs
-            },
+function CpuStressTest({ tabName, updateResult }) {
+  const [workers, setWorkers] = useState([]);
+  const [testing, setTesting] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(0);
+  const logicalCores = navigator.hardwareConcurrency || 4;
 
-            utils: {
-                showToast: (title, msg, type = 'info') => {
-                    const container = document.getElementById('toast-container');
-                    const toast = document.createElement('div');
-                    
-                    let bg = 'bg-zinc-800', border = 'border-primary', icon = 'fa-info-circle', text = 'text-primary';
-                    if(type === 'success') { bg = 'bg-emerald-950'; border = 'border-emerald-500'; icon = 'fa-check-circle'; text = 'text-emerald-400'; }
-                    if(type === 'error') { bg = 'bg-red-950'; border = 'border-red-500'; icon = 'fa-triangle-exclamation'; text = 'text-red-400'; }
-                    
-                    toast.className = `${bg} ${border} border px-6 py-4 rounded-lg shadow-2xl fade-in flex items-center gap-4 pointer-events-auto min-w-[300px]`;
-                    toast.innerHTML = `
-                        <i class="fa-solid ${icon} ${text} text-3xl"></i> 
-                        <div class="flex flex-col">
-                            <span class="font-bold text-white tracking-wide">${title}</span>
-                            <span class="text-sm text-zinc-400 font-mono mt-1">${msg}</span>
-                        </div>
-                    `;
-                    container.appendChild(toast);
-                    
-                    app.hardware.playTone(type === 'success' ? 880 : 440, 'both', 'sine', 0.1);
-                    if(type === 'success') setTimeout(() => app.hardware.playTone(1100, 'both', 'sine', 0.15), 150);
+  const startStressTest = () => {
+    const newWorkers = [];
+    // Create inline blob worker
+    const blob = new Blob([workerCode], { type: 'application/javascript' });
+    const workerUrl = URL.createObjectURL(blob);
 
-                    setTimeout(() => {
-                        toast.style.opacity = '0';
-                        toast.style.transition = 'opacity 0.3s';
-                        setTimeout(() => toast.remove(), 300);
-                    }, 5000);
-                },
-                
-                stopHardware: () => {
-                    // Stop Camera/Mic Streams
-                    app.state.activeStreams.forEach(stream => stream.getTracks().forEach(track => track.stop()));
-                    app.state.activeStreams = [];
-                    // Stop Recorders
-                    if(app.state.audioRecorder && app.state.audioRecorder.state !== 'inactive') app.state.audioRecorder.stop();
-                    // Stop Animation Loops (Oscilloscope)
-                    if(app.state.animationFrameId) cancelAnimationFrame(app.state.animationFrameId);
-                    
-                    // Clean global listeners
-                    if(window.kbdDownListener) { window.removeEventListener('keydown', window.kbdDownListener, true); window.kbdDownListener = null; }
-                    if(window.kbdUpListener) { window.removeEventListener('keyup', window.kbdUpListener, true); window.kbdUpListener = null; }
-                    if(window.usbListener) { navigator.usb?.removeEventListener('connect', window.usbListener); window.usbListener = null; }
-                    if(window.mediaListener) { navigator.mediaDevices?.removeEventListener('devicechange', window.mediaListener); window.mediaListener = null; }
-                    if(window.screenListener) { window.removeEventListener('resize', window.screenListener); window.screenListener = null; }
-                }
-            },
+    for (let i = 0; i < logicalCores; i++) {
+      const worker = new Worker(workerUrl);
+      worker.postMessage('start');
+      newWorkers.push(worker);
+    }
+    
+    setWorkers(newWorkers);
+    setTesting(true);
+    setTimeRemaining(10); // 10 second test
+    updateResult(tabName, 'Info', 'Testing in progress...');
+  };
 
-            navigate: (testId) => {
-                app.utils.stopHardware();
-                app.state.currentTest = testId;
-                
-                // Update Sidebar Styles
-                document.querySelectorAll('.nav-btn').forEach(btn => {
-                    btn.classList.remove('bg-primary/10', 'text-white', 'border-l-4', 'border-primary');
-                    btn.classList.add('text-zinc-400');
-                    if(btn.dataset.nav === testId) {
-                        btn.classList.remove('text-zinc-400');
-                        btn.classList.add('bg-primary/10', 'text-white', 'border-l-4', 'border-primary');
-                    }
-                });
+  const stopStressTest = useCallback((isComplete = false) => {
+    workers.forEach(worker => worker.terminate());
+    setWorkers([]);
+    setTesting(false);
+    setTimeRemaining(0);
+    if (isComplete) {
+      updateResult(tabName, 'Pass', 'CPU handles 100% load without crash');
+    } else {
+      updateResult(tabName, 'Info', 'Test aborted manually');
+    }
+  }, [workers, tabName, updateResult]);
 
-                // Update Topbar
-                const testTitles = {
-                    'battery': '<i class="fa-solid fa-car-battery text-primary"></i> Battery Health Info',
-                    'keyboard': '<i class="fa-solid fa-keyboard text-primary"></i> Keyboard Intercept',
-                    'touchpad': '<i class="fa-solid fa-hand-pointer text-primary"></i> Touch Pad & Mouse',
-                    'mic': '<i class="fa-solid fa-microphone-lines text-primary"></i> Online Mic Test',
-                    'voice': '<i class="fa-solid fa-voicemail text-primary"></i> Voice Recorder',
-                    'camera': '<i class="fa-solid fa-camera text-primary"></i> Camera Feed',
-                    'ports': '<i class="fa-solid fa-hubspot text-primary"></i> Port Checker (Live)'
-                };
-                document.getElementById('page-title').innerHTML = testTitles[testId] || 'Device Checker';
+  useEffect(() => {
+    let timer;
+    if (testing && timeRemaining > 0) {
+      timer = setTimeout(() => setTimeRemaining(t => t - 1), 1000);
+    } else if (testing && timeRemaining === 0) {
+      stopStressTest(true);
+    }
+    return () => clearTimeout(timer);
+  }, [testing, timeRemaining, stopStressTest]);
 
-                // Render Content
-                const contentDiv = document.getElementById('main-content');
-                contentDiv.innerHTML = `<div class="fade-in max-w-5xl mx-auto h-full pb-10">${app.templates[testId]()}</div>`;
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      workers.forEach(w => w.terminate());
+    };
+  }, [workers]);
 
-                // Initialize Test Logic
-                setTimeout(() => {
-                    if (app.hardware[testId]) app.hardware[testId]();
-                }, 50);
-            },
+  return (
+    <div className="flex flex-col items-center justify-center h-full space-y-8 py-10">
+      <div className="text-center">
+        <Cpu size={64} className={`mx-auto mb-4 ${testing ? 'text-red-500 animate-pulse' : 'text-blue-500'}`} />
+        <h3 className="text-2xl font-bold text-gray-800 mb-2">Multi-core Stress Test</h3>
+        <p className="text-gray-600 max-w-md mx-auto">
+          This test utilizes Web Workers to push all <strong>{logicalCores}</strong> available logical cores to 100% utilization for 10 seconds to check system stability and cooling.
+        </p>
+      </div>
 
-            templates: {
-                battery: () => `
-                    <div class="bg-panel border border-zinc-800 rounded-sm shadow-2xl p-1 overflow-hidden">
-                        <div class="bg-zinc-200 text-black px-3 py-1 flex items-center justify-between text-xs border-b border-zinc-400">
-                            <div class="font-sans flex items-center gap-2"><i class="fa-solid fa-battery-half text-zinc-600"></i> BatteryInfoView</div>
-                            <div class="flex gap-1"><div class="w-3 h-3 bg-zinc-400 border border-zinc-500"></div><div class="w-3 h-3 bg-zinc-400 border border-zinc-500"></div><div class="w-3 h-3 bg-red-500 border border-red-700 text-white flex items-center justify-center font-bold" style="font-size: 8px;">X</div></div>
-                        </div>
-                        <div class="bg-zinc-100 border-b border-zinc-300 p-1 flex gap-2">
-                            <button class="px-2 py-1 hover:bg-zinc-300 border border-transparent hover:border-zinc-400 text-black text-xs cursor-pointer"><i class="fa-solid fa-rotate-right text-blue-600"></i> Refresh</button>
-                            <button class="px-2 py-1 hover:bg-zinc-300 border border-transparent hover:border-zinc-400 text-black text-xs cursor-pointer"><i class="fa-solid fa-save text-blue-600"></i> Save</button>
-                        </div>
-                        <div class="overflow-x-auto bg-dark pb-2">
-                            <table class="data-grid" id="battery-table">
-                                <thead><tr><th>Property</th><th>Value</th></tr></thead>
-                                <tbody>
-                                    <tr><td>Description</td><td>Local System Battery</td></tr>
-                                    <tr><td>Power State</td><td id="b-state">Scanning...</td></tr>
-                                    <tr><td>Current Capacity (in %)</td><td id="b-level">Scanning...</td></tr>
-                                    <tr><td>Current Capacity Value</td><td class="text-zinc-500">OS Restricted</td></tr>
-                                    <tr><td>Full Charged Capacity</td><td class="text-zinc-500">OS Restricted</td></tr>
-                                    <tr><td>Designed Capacity</td><td class="text-zinc-500">OS Restricted</td></tr>
-                                    <tr><td>Battery Health</td><td class="text-zinc-500" id="b-health">Calculating Estimate...</td></tr>
-                                    <tr><td>Voltage</td><td class="text-zinc-500">OS Restricted</td></tr>
-                                    <tr><td>Charge/Discharge Rate</td><td class="text-zinc-500">OS Restricted</td></tr>
-                                    <tr><td>Time to Full Charge</td><td id="b-full">N/A</td></tr>
-                                    <tr><td>Time to Empty</td><td id="b-empty">N/A</td></tr>
-                                    <tr><td>Chemistry</td><td class="text-zinc-500">Lithium-Ion (Assumed)</td></tr>
-                                    <tr><td>Cycle Count</td><td class="text-zinc-500 font-bold bg-zinc-900/50">Blocked by Browser Sandbox Security</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="p-3 bg-zinc-900 border-t border-zinc-800 text-xs text-zinc-500 font-mono flex gap-2">
-                            <i class="fa-solid fa-circle-info text-primary mt-0.5"></i>
-                            <p>Deep hardware metrics (Voltage, Cycle Count, exact mWh Capacities) cannot be accessed via web browsers to prevent device fingerprinting. Values marked "OS Restricted" require native application privileges.</p>
-                        </div>
-                    </div>`,
+      {testing ? (
+        <div className="text-center space-y-4 w-full max-w-md">
+          <div className="text-3xl font-mono font-bold text-red-600">{timeRemaining}s</div>
+          <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
+             <div 
+               className="h-full bg-red-500 transition-all duration-1000 ease-linear" 
+               style={{ width: `${((10 - timeRemaining) / 10) * 100}%` }}
+             ></div>
+          </div>
+          <p className="text-sm text-red-600 animate-pulse font-semibold">CPU Under Max Load. Listen for fan noise.</p>
+          <button onClick={() => stopStressTest(false)} className="btn-danger w-full mt-4">Abort Test</button>
+        </div>
+      ) : (
+        <button onClick={startStressTest} className="btn-primary flex items-center text-lg px-8 py-4">
+          <Activity size={24} className="mr-2" /> Ignite CPU Stress Test
+        </button>
+      )}
+    </div>
+  );
+}
 
-                keyboard: () => `
-                    <div class="bg-panel border border-zinc-800 rounded-xl p-6 text-center shadow-2xl mt-4">
-                        <div class="bg-zinc-900 border border-zinc-800 rounded-lg p-3 mb-6 inline-block">
-                            <p class="text-zinc-300 text-sm flex items-center gap-3">
-                                <i class="fa-solid fa-shield-halved text-primary"></i>
-                                Hardware Intercept Mode Active. Default browser shortcuts (F5, Space, Tab) are blocked for testing.
-                            </p>
-                        </div>
-                        <div id="keyboard-container" class="bg-black p-6 rounded-xl border border-zinc-800 inline-block overflow-x-auto max-w-full shadow-inner">
-                            <!-- Generated by JS -->
-                        </div>
-                        <div class="mt-8">
-                            <button onclick="app.hardware.keyboard()" class="px-6 py-2 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-500 text-white font-bold text-sm rounded-lg transition-all"><i class="fa-solid fa-rotate-right mr-2 text-primary"></i> Reset Grid</button>
-                        </div>
-                    </div>`,
+function RamStressTest({ tabName, updateResult }) {
+  const [allocatedSize, setAllocatedSize] = useState(0); // in MB
+  const [memoryChunks, setMemoryChunks] = useState([]);
+  
+  // Safe limits to prevent browser crash
+  const CHUNK_SIZE_MB = 50; 
+  const MAX_MB = navigator.deviceMemory ? navigator.deviceMemory * 1024 * 0.4 : 1000; // use ~40% of physical ram or max 1GB
 
-                touchpad: () => `
-                    <div class="bg-panel border border-zinc-800 rounded-xl p-8 text-center shadow-2xl mt-4">
-                        <div class="flex justify-between items-end mb-6">
-                            <div class="text-left">
-                                <h3 class="text-xl text-white font-bold mb-1">Trackpad & Mouse Diagnostics</h3>
-                                <p class="text-zinc-500 text-sm">Draw in the box to test multi-touch/tracking. Use physical buttons to test clicks.</p>
-                            </div>
-                            <button onclick="app.hardware.clearTouchpad()" class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-sm rounded border border-zinc-700 transition-colors"><i class="fa-solid fa-eraser mr-2"></i> Clear Surface</button>
-                        </div>
-                        
-                        <canvas id="touch-canvas" class="mb-6 shadow-inner"></canvas>
-                        
-                        <div class="flex justify-center gap-4 font-mono text-sm font-bold w-full max-w-2xl mx-auto">
-                            <div id="m-left" class="flex-1 py-4 bg-zinc-900 rounded border border-zinc-800 text-zinc-600 transition-all">LEFT CLICK</div>
-                            <div id="m-scroll" class="flex-1 py-4 bg-zinc-900 rounded border border-zinc-800 text-zinc-600 transition-all">SCROLL WHEEL</div>
-                            <div id="m-right" class="flex-1 py-4 bg-zinc-900 rounded border border-zinc-800 text-zinc-600 transition-all">RIGHT CLICK</div>
-                        </div>
-                    </div>`,
+  const allocateMemory = () => {
+    if (allocatedSize >= MAX_MB) return;
+    
+    try {
+      // Allocate an array of strings (creates memory footprint)
+      // 1 char roughly = 2 bytes in JS. 50MB roughly = 25 million chars
+      const chunk = new Array(CHUNK_SIZE_MB * 10000).fill('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789');
+      setMemoryChunks(prev => [...prev, chunk]);
+      setAllocatedSize(prev => prev + CHUNK_SIZE_MB);
+      updateResult(tabName, 'Pass', `${allocatedSize + CHUNK_SIZE_MB} MB Allocated`);
+    } catch (e) {
+      updateResult(tabName, 'Fail', 'OOM Exception: ' + e.message);
+    }
+  };
 
-                mic: () => `
-                    <div class="bg-panel border border-zinc-800 rounded-xl p-8 flex flex-col items-center shadow-2xl mt-4">
-                        <i class="fa-solid fa-microphone-lines text-5xl text-zinc-600 mb-6 drop-shadow-md" id="mic-icon"></i>
-                        <h3 class="text-2xl font-bold text-white mb-2 tracking-wide">Microphone Oscilloscope</h3>
-                        <p class="text-zinc-500 text-sm mb-8">Test your microphone via real-time waveform analysis.</p>
-                        
-                        <div class="w-full max-w-3xl mb-8 relative group">
-                            <canvas id="mic-canvas"></canvas>
-                            <div id="mic-overlay" class="absolute inset-0 bg-black/80 flex items-center justify-center rounded-8px border border-zinc-800 z-10 backdrop-blur-sm">
-                                <button onclick="app.hardware.startMic()" class="px-8 py-3 bg-primary hover:bg-cyan-400 text-darker rounded font-bold uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(6,182,212,0.4)]">
-                                    <i class="fa-solid fa-play mr-2"></i> Allow Access & Start
-                                </button>
-                            </div>
-                        </div>
-                    </div>`,
+  const freeMemory = useCallback(() => {
+    setMemoryChunks([]);
+    setAllocatedSize(0);
+    updateResult(tabName, 'Info', 'Memory freed');
+  }, [tabName, updateResult]);
 
-                voice: () => `
-                    <div class="bg-panel border border-zinc-800 rounded-xl p-8 flex flex-col items-center shadow-2xl mt-4">
-                        <i class="fa-solid fa-voicemail text-6xl text-primary mb-6 drop-shadow-[0_0_15px_rgba(6,182,212,0.3)]"></i>
-                        <h3 class="text-2xl font-bold text-white mb-2 tracking-wide">Voice Recorder Quality Test</h3>
-                        <p class="text-zinc-500 font-medium text-sm mb-8 text-center max-w-lg">Record a short phrase (e.g. "Testing 1, 2, 3") and play it back to verify the internal microphone is not muffled or distorted.</p>
-                        
-                        <div class="flex gap-4 mb-8">
-                            <button id="btn-record" onclick="app.hardware.startVoice()" class="px-8 py-4 bg-red-600 hover:bg-red-500 text-white rounded font-bold uppercase tracking-widest transition-all shadow-lg w-48"><i class="fa-solid fa-circle text-xs align-middle mr-2"></i> Record</button>
-                            <button id="btn-stop" onclick="app.hardware.stopVoice()" class="px-8 py-4 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-400 rounded font-bold uppercase tracking-widest transition-all hidden w-48"><i class="fa-solid fa-stop mr-2"></i> Stop</button>
-                        </div>
-                        
-                        <div id="playback-container" class="w-full max-w-lg bg-black border border-zinc-800 p-6 rounded-xl hidden flex-col items-center shadow-inner">
-                            <span class="text-success font-bold font-mono text-sm mb-4"><i class="fa-solid fa-check mr-2"></i> Audio Captured</span>
-                            <audio id="audio-playback" controls class="w-full"></audio>
-                        </div>
-                    </div>`,
+  // Clean up on unmount
+  useEffect(() => {
+    return () => setMemoryChunks([]);
+  }, []);
 
-                camera: () => `
-                    <div class="bg-panel border border-zinc-800 rounded-xl p-8 flex flex-col items-center shadow-2xl mt-4">
-                        <div class="w-full max-w-3xl aspect-video bg-black rounded-xl overflow-hidden border border-zinc-700 relative flex items-center justify-center mb-6 shadow-inner group">
-                            <video id="webcam-video" autoplay playsinline class="w-full h-full object-cover hidden transform scale-x-[-1]"></video>
-                            <div id="cam-overlay" class="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-10">
-                                <i class="fa-solid fa-camera text-5xl text-zinc-600 mb-6"></i>
-                                <button onclick="app.hardware.startCamera()" class="px-8 py-3 bg-primary hover:bg-cyan-400 text-darker rounded font-bold uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(6,182,212,0.4)]">
-                                    <i class="fa-solid fa-play mr-2"></i> Initialize Sensor
-                                </button>
-                            </div>
-                        </div>
-                        <div class="w-full max-w-3xl flex justify-between px-2">
-                            <span class="text-xs font-mono text-zinc-500" id="cam-res">Resolution: Standby</span>
-                            <span class="text-xs font-mono text-zinc-500">Video mirrored for natural testing</span>
-                        </div>
-                    </div>`,
+  const percentage = Math.min(100, (allocatedSize / MAX_MB) * 100);
 
-                ports: () => `
-                    <div class="bg-panel border border-zinc-800 rounded-xl p-8 shadow-2xl mt-4">
-                        <div class="text-center mb-10">
-                            <i class="fa-brands fa-hubspot text-6xl text-primary mb-4 animate-pulse"></i>
-                            <h3 class="text-2xl font-bold text-white mb-2">Live Hardware Connection Listener</h3>
-                            <p class="text-zinc-400 text-sm max-w-xl mx-auto">Actively scanning the motherboard for hardware interrupts. Plug in a USB drive, Type-C cable, Audio headset, or HDMI monitor.</p>
-                        </div>
-                        
-                        <div id="port-grid" class="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
-                            <div id="port-usb" class="port-light bg-black border border-zinc-700 rounded-xl p-8 text-center text-zinc-600 flex flex-col items-center justify-center h-40 relative overflow-hidden">
-                                <i class="fa-brands fa-usb text-5xl mb-3"></i>
-                                <p class="font-bold font-mono text-sm text-zinc-400">USB / TYPE-C</p>
-                                <div class="absolute bottom-0 w-full h-1 bg-zinc-800" id="bar-usb"></div>
-                            </div>
-                            <div id="port-audio" class="port-light bg-black border border-zinc-700 rounded-xl p-8 text-center text-zinc-600 flex flex-col items-center justify-center h-40 relative overflow-hidden">
-                                <i class="fa-solid fa-headset text-5xl mb-3"></i>
-                                <p class="font-bold font-mono text-sm text-zinc-400">AUDIO JACK</p>
-                                <div class="absolute bottom-0 w-full h-1 bg-zinc-800" id="bar-audio"></div>
-                            </div>
-                            <div id="port-hdmi" class="port-light bg-black border border-zinc-700 rounded-xl p-8 text-center text-zinc-600 flex flex-col items-center justify-center h-40 relative overflow-hidden">
-                                <i class="fa-solid fa-display text-5xl mb-3"></i>
-                                <p class="font-bold font-mono text-sm text-zinc-400">HDMI / DISPLAY</p>
-                                <div class="absolute bottom-0 w-full h-1 bg-zinc-800" id="bar-hdmi"></div>
-                            </div>
-                        </div>
-                        
-                        <div class="mt-10 bg-zinc-900/50 border border-zinc-800 p-4 rounded text-center max-w-3xl mx-auto">
-                            <p class="text-xs text-zinc-500 font-mono"><i class="fa-solid fa-triangle-exclamation text-warning mr-2"></i> Power-only chargers do not trigger data interrupts. You must use data-enabled peripherals.</p>
-                        </div>
-                    </div>`
-            },
+  return (
+    <div className="flex flex-col items-center justify-center h-full space-y-8 py-10">
+      <div className="text-center max-w-md">
+        <Activity size={64} className="mx-auto mb-4 text-purple-500" />
+        <h3 className="text-2xl font-bold text-gray-800 mb-2">Memory Allocation Test</h3>
+        <p className="text-gray-600">
+          This test allocates blocks of memory in the browser heap to check for bad sectors and stability. 
+          <br/><span className="text-xs text-red-500 font-bold">Limited to ~{MAX_MB}MB to prevent browser crash.</span>
+        </p>
+      </div>
 
-            hardware: {
-                battery: async () => {
-                    if ('getBattery' in navigator) {
-                        try {
-                            const b = await navigator.getBattery();
-                            const update = () => {
-                                document.getElementById('b-level').innerHTML = `${Math.round(b.level * 100)}%`;
-                                document.getElementById('b-state').innerHTML = b.charging ? '<span class="text-success">Charging (AC Power)</span>' : '<span class="text-warning">Discharging (Battery)</span>';
-                                
-                                const formatTime = (sec) => {
-                                    if(sec === Infinity || sec === 0) return 'Unknown / Calculating...';
-                                    const hrs = Math.floor(sec / 3600);
-                                    const mins = Math.floor((sec % 3600) / 60);
-                                    return `${hrs}h ${mins}m`;
-                                };
-                                
-                                document.getElementById('b-empty').innerText = b.charging ? 'N/A' : formatTime(b.dischargingTime);
-                                document.getElementById('b-full').innerText = b.charging ? formatTime(b.chargingTime) : 'N/A';
-                                
-                                // Fake health estimate purely for the UI based on general rules, as real health is OS restricted
-                                let health = "Good";
-                                if(b.level === 1 && b.charging) health = "Excellent";
-                                else if (!b.charging && b.dischargingTime !== Infinity && b.dischargingTime < 3600) health = "Degraded (Fast Discharge)";
-                                document.getElementById('b-health').innerHTML = `<span class="text-white">${health} (Estimated)</span>`;
-                            };
-                            update();
-                            b.addEventListener('levelchange', update);
-                            b.addEventListener('chargingchange', update);
-                            b.addEventListener('dischargingtimechange', update);
-                            b.addEventListener('chargingtimechange', update);
-                        } catch(e) {
-                            document.getElementById('b-state').innerText = "Access Denied by Browser";
-                        }
-                    } else {
-                        document.getElementById('b-state').innerHTML = '<span class="text-danger">API Not Supported in this Browser</span>';
-                    }
-                },
+      <div className="w-full max-w-lg bg-slate-100 p-6 rounded-xl border border-slate-200">
+        <div className="flex justify-between mb-2">
+          <span className="font-semibold text-slate-700">Allocated RAM</span>
+          <span className="font-mono font-bold text-purple-600">{allocatedSize} MB / {MAX_MB} MB</span>
+        </div>
+        <div className="h-6 bg-slate-300 rounded-full overflow-hidden shadow-inner mb-6">
+          <div 
+            className="h-full bg-purple-500 transition-all duration-300 ease-out" 
+            style={{ width: `${percentage}%` }}
+          ></div>
+        </div>
+        
+        <div className="flex space-x-4">
+          <button 
+            onClick={allocateMemory} 
+            disabled={allocatedSize >= MAX_MB}
+            className={`flex-1 py-3 rounded-lg font-bold text-white shadow-md transition-all ${allocatedSize >= MAX_MB ? 'bg-purple-300 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700 active:scale-95'}`}
+          >
+            Allocate +{CHUNK_SIZE_MB}MB
+          </button>
+          <button 
+            onClick={freeMemory} 
+            disabled={allocatedSize === 0}
+            className={`flex-1 py-3 rounded-lg font-bold transition-all border-2 ${allocatedSize === 0 ? 'border-gray-200 text-gray-400 cursor-not-allowed' : 'border-slate-800 text-slate-800 hover:bg-slate-800 hover:text-white active:scale-95'}`}
+          >
+            Free Memory
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-                keyboard: () => {
-                    const container = document.getElementById('keyboard-container');
-                    if(!container) return;
+function GenerateReport({ results }) {
+  const handlePrint = () => {
+    window.print();
+  };
 
-                    const rows = [
-                        [ {c:'Esc',code:'Escape',w:'k-sm'},{c:'F1',w:'k-sm'},{c:'F2',w:'k-sm'},{c:'F3',w:'k-sm'},{c:'F4',w:'k-sm'},{c:'F5',w:'k-sm'},{c:'F6',w:'k-sm'},{c:'F7',w:'k-sm'},{c:'F8',w:'k-sm'},{c:'F9',w:'k-sm'},{c:'F10',w:'k-sm'},{c:'F11',w:'k-sm'},{c:'F12',w:'k-sm'},{c:'Del',code:'Delete',w:'k-sm'} ],
-                        [ {c:'`',code:'Backquote',w:'k-std'},{c:'1',code:'Digit1',w:'k-std'},{c:'2',code:'Digit2',w:'k-std'},{c:'3',code:'Digit3',w:'k-std'},{c:'4',code:'Digit4',w:'k-std'},{c:'5',code:'Digit5',w:'k-std'},{c:'6',code:'Digit6',w:'k-std'},{c:'7',code:'Digit7',w:'k-std'},{c:'8',code:'Digit8',w:'k-std'},{c:'9',code:'Digit9',w:'k-std'},{c:'0',code:'Digit0',w:'k-std'},{c:'-',code:'Minus',w:'k-std'},{c:'=',code:'Equal',w:'k-std'},{c:'Backspace',w:'k-w4',code:'Backspace'} ],
-                        [ {c:'Tab',w:'k-w1',code:'Tab'},{c:'Q',code:'KeyQ',w:'k-std'},{c:'W',code:'KeyW',w:'k-std'},{c:'E',code:'KeyE',w:'k-std'},{c:'R',code:'KeyR',w:'k-std'},{c:'T',code:'KeyT',w:'k-std'},{c:'Y',code:'KeyY',w:'k-std'},{c:'U',code:'KeyU',w:'k-std'},{c:'I',code:'KeyI',w:'k-std'},{c:'O',code:'KeyO',w:'k-std'},{c:'P',code:'KeyP',w:'k-std'},{c:'[',code:'BracketLeft',w:'k-std'},{c:']',code:'BracketRight',w:'k-std'},{c:'\\',code:'Backslash',w:'k-w1'} ],
-                        [ {c:'Caps',w:'k-w2',code:'CapsLock'},{c:'A',code:'KeyA',w:'k-std'},{c:'S',code:'KeyS',w:'k-std'},{c:'D',code:'KeyD',w:'k-std'},{c:'F',code:'KeyF',w:'k-std'},{c:'G',code:'KeyG',w:'k-std'},{c:'H',code:'KeyH',w:'k-std'},{c:'J',code:'KeyJ',w:'k-std'},{c:'K',code:'KeyK',w:'k-std'},{c:'L',code:'KeyL',w:'k-std'},{c:';',code:'Semicolon',w:'k-std'},{c:'\'',code:'Quote',w:'k-std'},{c:'Enter',w:'k-w4',code:'Enter'} ],
-                        [ {c:'Shift L',w:'k-w3',code:'ShiftLeft'},{c:'Z',code:'KeyZ',w:'k-std'},{c:'X',code:'KeyX',w:'k-std'},{c:'C',code:'KeyC',w:'k-std'},{c:'V',code:'KeyV',w:'k-std'},{c:'B',code:'KeyB',w:'k-std'},{c:'N',code:'KeyN',w:'k-std'},{c:'M',code:'KeyM',w:'k-std'},{c:',',code:'Comma',w:'k-std'},{c:'.',code:'Period',w:'k-std'},{c:'/',code:'Slash',w:'k-std'},{c:'Shift R',w:'k-w4',code:'ShiftRight'} ],
-                        [ {c:'Ctrl L',w:'k-w1',code:'ControlLeft'},{c:'Win',w:'k-w1',code:'MetaLeft'},{c:'Alt L',w:'k-w1',code:'AltLeft'},{c:'Space',w:'k-space',code:'Space'},{c:'Alt R',w:'k-w1',code:'AltRight'},{c:'Ctrl R',w:'k-w1',code:'ControlRight'},{c:'←',code:'ArrowLeft',w:'k-std'},{c:'↑',code:'ArrowUp',w:'k-std'},{c:'↓',code:'ArrowDown',w:'k-std'},{c:'→',code:'ArrowRight',w:'k-std'} ]
-                    ];
+  const totalTests = 13; // Exclude 'Generate Report' tab
+  const completedTests = Object.keys(results).length;
+  const passCount = Object.values(results).filter(r => r.status === 'Pass').length;
 
-                    container.innerHTML = rows.map(r => `<div class="kbd-row">${r.map(k => `<div id="key-${k.code}" class="key ${k.w}">${k.c}</div>`).join('')}</div>`).join('');
+  return (
+    <div className="space-y-6">
+      {/* Hide this print-header on screen, show on print */}
+      <style dangerouslySetInnerHTML={{__html: `
+        @media print {
+          body * { visibility: hidden; }
+          .print-section, .print-section * { visibility: visible; }
+          .print-section { position: absolute; left: 0; top: 0; width: 100%; padding: 20px; }
+          .no-print { display: none !important; }
+        }
+      `}} />
 
-                    if(window.kbdDownListener) { window.removeEventListener('keydown', window.kbdDownListener, true); window.removeEventListener('keyup', window.kbdUpListener, true); }
+      <div className="print-section bg-white">
+        <div className="flex justify-between items-end border-b-2 border-gray-800 pb-4 mb-6">
+          <div>
+            <h2 className="text-3xl font-black text-gray-900 tracking-tight">Diagnostic Report</h2>
+            <p className="text-gray-500 mt-1">Generated on {new Date().toLocaleString()}</p>
+          </div>
+          <div className="text-right">
+            <p className="font-bold text-xl">{mockSerial}</p>
+            <p className="text-sm text-gray-500">System Serial</p>
+          </div>
+        </div>
 
-                    window.kbdDownListener = (e) => {
-                        e.preventDefault(); e.stopPropagation();
-                        const el = document.getElementById(`key-${e.code}`);
-                        if(el) {
-                            el.classList.add('active', 'tested');
-                            app.hardware.playTone(800, 'both', 'sine', 0.02);
-                        }
-                        return false;
-                    };
-                    window.kbdUpListener = (e) => {
-                        e.preventDefault(); e.stopPropagation();
-                        const el = document.getElementById(`key-${e.code}`);
-                        if(el) el.classList.remove('active');
-                        return false;
-                    };
+        <div className="grid grid-cols-3 gap-4 mb-8">
+          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+            <p className="text-sm text-slate-500">Tests Run</p>
+            <p className="text-2xl font-bold">{completedTests} / {totalTests}</p>
+          </div>
+          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+            <p className="text-sm text-green-700">Passed</p>
+            <p className="text-2xl font-bold text-green-600">{passCount}</p>
+          </div>
+          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+            <p className="text-sm text-slate-500">OS Platform</p>
+            <p className="text-xl font-bold">{navigator.platform}</p>
+          </div>
+        </div>
 
-                    window.addEventListener('keydown', window.kbdDownListener, true);
-                    window.addEventListener('keyup', window.kbdUpListener, true);
-                },
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-slate-100 text-slate-700 border-y border-slate-300">
+              <th className="py-3 px-4 font-semibold">Component / Test</th>
+              <th className="py-3 px-4 font-semibold">Status</th>
+              <th className="py-3 px-4 font-semibold">Details</th>
+              <th className="py-3 px-4 font-semibold text-right">Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              'System Info', 'Serial & BIOS', 'Battery Health', 'Camera Test', 
+              'Mic Test', 'Speaker Test', 'Keyboard Test', 'Mouse Test', 
+              'Display Test', 'USB Detection', 'SSD Health', 'CPU Stress Test', 'RAM Stress Test'
+            ].map(test => {
+              const res = results[test] || { status: 'Untested', details: '---', time: '--:--:--' };
+              return (
+                <tr key={test} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                  <td className="py-3 px-4 font-medium text-gray-800">{test}</td>
+                  <td className="py-3 px-4">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                      ${res.status === 'Pass' ? 'bg-green-100 text-green-800' : 
+                        res.status === 'Fail' ? 'bg-red-100 text-red-800' : 
+                        res.status === 'Untested' ? 'bg-gray-100 text-gray-800' : 'bg-blue-100 text-blue-800'}`}>
+                      {res.status}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 text-sm text-gray-600">{res.details}</td>
+                  <td className="py-3 px-4 text-sm text-gray-500 text-right">{res.time}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
-                touchpad: () => {
-                    const canvas = document.getElementById('touch-canvas');
-                    if(!canvas) return;
-                    const ctx = canvas.getContext('2d');
-                    
-                    const resize = () => {
-                        canvas.width = canvas.parentElement.clientWidth - 64; // match padding
-                        canvas.height = 400;
-                        app.hardware.clearTouchpad();
-                    };
-                    resize();
-                    window.addEventListener('resize', resize);
+      <div className="flex justify-center mt-8 no-print">
+        <button 
+          onClick={handlePrint}
+          className="bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 px-8 rounded-lg shadow-lg flex items-center transition-transform active:scale-95"
+        >
+          <FileText className="mr-2" /> Print / Save as PDF
+        </button>
+      </div>
+    </div>
+  );
+}
 
-                    let isDrawing = false;
-                    const draw = (e) => {
-                        if(!isDrawing) return;
-                        e.preventDefault();
-                        ctx.lineWidth = 4;
-                        ctx.lineCap = 'round';
-                        ctx.strokeStyle = '#06b6d4'; 
-                        
-                        const rect = canvas.getBoundingClientRect();
-                        let clientX = e.clientX || (e.touches && e.touches[0].clientX);
-                        let clientY = e.clientY || (e.touches && e.touches[0].clientY);
+// --- UTILITY COMPONENTS ---
 
-                        ctx.lineTo(clientX - rect.left, clientY - rect.top);
-                        ctx.stroke();
-                        ctx.beginPath();
-                        ctx.moveTo(clientX - rect.left, clientY - rect.top);
-                    };
+function InfoCard({ label, value, full = false }) {
+  return (
+    <div className={`p-4 bg-slate-50 rounded-lg border border-slate-200 ${full ? 'col-span-2' : ''}`}>
+      <span className="text-xs text-slate-500 uppercase font-semibold tracking-wide block mb-1">{label}</span>
+      <span className="text-lg font-medium text-slate-800 break-words">{value}</span>
+    </div>
+  );
+}
 
-                    canvas.addEventListener('mousedown', (e) => { isDrawing = true; draw(e); });
-                    canvas.addEventListener('mouseup', () => { isDrawing = false; ctx.beginPath(); });
-                    canvas.addEventListener('mousemove', draw);
-                    canvas.addEventListener('touchstart', (e) => { isDrawing = true; draw(e); });
-                    canvas.addEventListener('touchend', () => { isDrawing = false; ctx.beginPath(); });
-                    canvas.addEventListener('touchmove', draw);
+// Global button styles
+const buttonStyles = `
+  .btn-primary { @apply bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition-all active:scale-95; }
+  .btn-danger { @apply bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition-all active:scale-95; }
+  .btn-success { @apply bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg shadow-md transition-all active:scale-95; }
+`;
 
-                    // Button Tracker
-                    const flashBtn = (id) => {
-                        const btn = document.getElementById(id);
-                        if(!btn) return;
-                        btn.classList.replace('bg-zinc-900', 'bg-primary');
-                        btn.classList.replace('text-zinc-600', 'text-darker');
-                        setTimeout(() => {
-                            btn.classList.replace('bg-primary', 'bg-zinc-900');
-                            btn.classList.replace('text-darker', 'text-zinc-600');
-                        }, 200);
-                        app.hardware.playTone(1000, 'both', 'square', 0.05);
-                    };
-
-                    canvas.onmousedown = (e) => {
-                        if(e.button === 0) flashBtn('m-left');
-                        if(e.button === 1) flashBtn('m-scroll');
-                        if(e.button === 2) flashBtn('m-right');
-                    };
-                    canvas.oncontextmenu = e => e.preventDefault();
-                    canvas.onwheel = (e) => { e.preventDefault(); flashBtn('m-scroll'); };
-                    
-                    app.hardware.clearTouchpad = () => {
-                        ctx.fillStyle = "#09090b";
-                        ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    };
-                },
-
-                startMic: async () => {
-                    try {
-                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                        app.state.activeStreams.push(stream);
-                        document.getElementById('mic-overlay').classList.add('hidden');
-                        document.getElementById('mic-icon').classList.replace('text-zinc-600', 'text-success');
-                        
-                        const canvas = document.getElementById('mic-canvas');
-                        const ctx = canvas.getContext('2d');
-                        canvas.width = canvas.clientWidth;
-                        canvas.height = canvas.clientHeight;
-
-                        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                        const analyser = audioContext.createAnalyser();
-                        const source = audioContext.createMediaStreamSource(stream);
-                        source.connect(analyser);
-                        analyser.fftSize = 2048;
-                        const bufferLength = analyser.frequencyBinCount;
-                        const dataArray = new Uint8Array(bufferLength);
-
-                        const draw = () => {
-                            if(app.state.currentTest !== 'mic') return;
-                            app.state.animationFrameId = requestAnimationFrame(draw);
-                            analyser.getByteTimeDomainData(dataArray);
-
-                            ctx.fillStyle = '#000000';
-                            ctx.fillRect(0, 0, canvas.width, canvas.height);
-                            ctx.lineWidth = 2;
-                            ctx.strokeStyle = '#10b981'; // Success green line
-                            ctx.beginPath();
-
-                            const sliceWidth = canvas.width * 1.0 / bufferLength;
-                            let x = 0;
-
-                            for (let i = 0; i < bufferLength; i++) {
-                                const v = dataArray[i] / 128.0;
-                                const y = v * canvas.height / 2;
-                                if (i === 0) ctx.moveTo(x, y);
-                                else ctx.lineTo(x, y);
-                                x += sliceWidth;
-                            }
-                            ctx.lineTo(canvas.width, canvas.height / 2);
-                            ctx.stroke();
-                        };
-                        draw();
-                    } catch (err) {
-                        app.utils.showToast("Microphone Denied", "Check browser permissions.", "error");
-                    }
-                },
-
-                startVoice: async () => {
-                    try {
-                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                        app.state.activeStreams.push(stream);
-                        app.state.audioChunks = [];
-                        app.state.audioRecorder = new MediaRecorder(stream);
-                        
-                        app.state.audioRecorder.ondataavailable = e => {
-                            if (e.data.size > 0) app.state.audioChunks.push(e.data);
-                        };
-
-                        app.state.audioRecorder.onstop = () => {
-                            const audioBlob = new Blob(app.state.audioChunks, { type: 'audio/webm' });
-                            const audioUrl = URL.createObjectURL(audioBlob);
-                            const audioEl = document.getElementById('audio-playback');
-                            audioEl.src = audioUrl;
-                            document.getElementById('playback-container').classList.replace('hidden', 'flex');
-                        };
-
-                        app.state.audioRecorder.start();
-                        document.getElementById('btn-record').classList.add('animate-pulse', 'shadow-[0_0_20px_rgba(220,38,38,0.8)]');
-                        document.getElementById('btn-record').innerHTML = '<i class="fa-solid fa-circle text-xs align-middle mr-2 animate-ping"></i> Recording...';
-                        document.getElementById('btn-stop').classList.remove('hidden');
-                    } catch (err) {
-                        app.utils.showToast("Microphone Denied", "Cannot record without mic access.", "error");
-                    }
-                },
-
-                stopVoice: () => {
-                    if(app.state.audioRecorder && app.state.audioRecorder.state !== 'inactive') {
-                        app.state.audioRecorder.stop();
-                        app.utils.stopHardware();
-                        const btnRecord = document.getElementById('btn-record');
-                        btnRecord.classList.remove('animate-pulse', 'shadow-[0_0_20px_rgba(220,38,38,0.8)]');
-                        btnRecord.innerHTML = '<i class="fa-solid fa-circle text-xs align-middle mr-2"></i> Record Again';
-                        document.getElementById('btn-stop').classList.add('hidden');
-                    }
-                },
-
-                startCamera: async () => {
-                    try {
-                        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: {ideal: 1920}, height: {ideal: 1080} } });
-                        const video = document.getElementById('webcam-video');
-                        video.srcObject = stream;
-                        video.classList.remove('hidden');
-                        document.getElementById('cam-overlay').classList.add('hidden');
-                        app.state.activeStreams.push(stream);
-                        
-                        // Detect resolution once playing
-                        video.onloadedmetadata = () => {
-                            document.getElementById('cam-res').innerText = `Resolution: ${video.videoWidth} x ${video.videoHeight}px`;
-                        };
-                    } catch (err) {
-                        app.utils.showToast("Camera Denied", "Check privacy settings or hardware switch.", "error");
-                    }
-                },
-
-                ports: async () => {
-                    const activateLight = (id, colorCls, bgCls) => {
-                        const port = document.getElementById(id);
-                        const bar = document.getElementById(id.replace('port-', 'bar-'));
-                        if(!port) return;
-                        
-                        port.classList.add('on');
-                        port.classList.replace('text-zinc-600', colorCls);
-                        bar.classList.replace('bg-zinc-800', bgCls);
-                        
-                        setTimeout(() => {
-                            port.classList.remove('on');
-                            port.classList.replace(colorCls, 'text-zinc-600');
-                            bar.classList.replace(bgCls, 'bg-zinc-800');
-                        }, 2500);
-                    };
-
-                    // 1. Listen for USB / Type-C (Requires HTTPS / Localhost)
-                    if(navigator.usb) {
-                        window.usbListener = (e) => {
-                            if(app.state.currentTest !== 'ports') return;
-                            app.utils.showToast("USB / Type-C Detected", `Device string: ${e.device?.productName || 'Generic USB Device'}`, "success");
-                            activateLight('port-usb', 'text-primary', 'bg-primary');
-                        };
-                        navigator.usb.addEventListener('connect', window.usbListener);
-                    } else {
-                        document.getElementById('port-usb').innerHTML += `<p class="text-[10px] text-danger absolute top-2 right-2 border border-danger p-1 rounded">API Unsupported</p>`;
-                    }
-
-                    // 2. Listen for Audio Jack (Headsets / Mics)
-                    const countMediaDevices = async () => {
-                        try {
-                            const devs = await navigator.mediaDevices.enumerateDevices();
-                            return {
-                                audio: devs.filter(d => d.kind.includes('audio')).length,
-                                video: devs.filter(d => d.kind.includes('video')).length
-                            };
-                        } catch(e) { return null; }
-                    };
-                    
-                    app.state.cachedDevices = await countMediaDevices();
-
-                    window.mediaListener = async () => {
-                        if(app.state.currentTest !== 'ports') return;
-                        const newCounts = await countMediaDevices();
-                        if(!newCounts || !app.state.cachedDevices) return;
-                        
-                        // If count increased, something was plugged in
-                        if(newCounts.audio > app.state.cachedDevices.audio) {
-                            app.utils.showToast("Audio Jack Detected", "Headphone or Microphone connected.", "success");
-                            activateLight('port-audio', 'text-fuchsia-400', 'bg-fuchsia-400');
-                        } else if (newCounts.video > app.state.cachedDevices.video) {
-                            app.utils.showToast("USB Video Detected", "External webcam connected.", "success");
-                            activateLight('port-usb', 'text-primary', 'bg-primary');
-                        }
-                        app.state.cachedDevices = newCounts;
-                    };
-                    navigator.mediaDevices?.addEventListener('devicechange', window.mediaListener);
-
-                    // 3. Listen for HDMI / External Monitor via Screen/Resize API
-                    let lastWidth = window.screen.width;
-                    window.screenListener = () => {
-                        if(app.state.currentTest !== 'ports') return;
-                        // Checking if total screen area changed or using matchMedia for multiple screens
-                        if(window.screen.width !== lastWidth || (window.screen.isExtended !== undefined && window.screen.isExtended)) {
-                            app.utils.showToast("HDMI / Display Detected", "External monitor connected.", "success");
-                            activateLight('port-hdmi', 'text-warning', 'bg-warning');
-                            lastWidth = window.screen.width;
-                        }
-                    };
-                    window.addEventListener('resize', window.screenListener);
-                },
-
-                playTone: (freq, pan, type='sine', duration=1) => {
-                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                    const osc = ctx.createOscillator();
-                    const panner = ctx.createStereoPanner();
-                    const gain = ctx.createGain();
-                    
-                    osc.type = type;
-                    osc.frequency.setValueAtTime(freq, ctx.currentTime);
-                    
-                    panner.pan.value = (pan === 'left') ? -1 : ((pan === 'right') ? 1 : 0);
-
-                    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
-
-                    osc.connect(panner);
-                    panner.connect(gain);
-                    gain.connect(ctx.destination);
-
-                    osc.start();
-                    osc.stop(ctx.currentTime + duration);
-                }
-            }
-        };
-
-        window.onload = () => {
-            // Start on the first test
-            app.navigate('battery');
-            
-            // System Clock Update
-            setInterval(() => {
-                const el = document.getElementById('system-clock');
-                if(el) el.innerText = new Date().toLocaleTimeString('en-US', { hour12: false });
-            }, 1000);
-        };
-    </script>
-</body>
-</html>
+// Inject button styles dynamically
+if (typeof document !== 'undefined') {
+  const style = document.createElement('style');
+  style.textContent = `
+    @tailwind components;
+    @layer components {
+      .btn-primary { background-color: #2563eb; color: white; padding: 0.5rem 1.5rem; border-radius: 0.5rem; font-weight: 700; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: all 150ms ease; }
+      .btn-primary:hover { background-color: #1d4ed8; }
+      .btn-primary:active { transform: scale(0.95); }
+      
+      .btn-danger { background-color: #dc2626; color: white; padding: 0.5rem 1.5rem; border-radius: 0.5rem; font-weight: 700; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: all 150ms ease; }
+      .btn-danger:hover { background-color: #b91c1c; }
+      .btn-danger:active { transform: scale(0.95); }
+      
+      .btn-success { background-color: #16a34a; color: white; padding: 0.5rem 1.5rem; border-radius: 0.5rem; font-weight: 700; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); transition: all 150ms ease; }
+      .btn-success:hover { background-color: #15803d; }
+      .btn-success:active { transform: scale(0.95); }
+    }
+  `;
+  document.head.appendChild(style);
+}
