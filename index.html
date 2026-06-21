@@ -1,1074 +1,1077 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { 
-  Monitor, Cpu, HardDrive, Battery, Camera, Mic, Volume2, 
-  Keyboard, MousePointer2, Usb, Activity, FileText, Settings, 
-  Info, CheckCircle, Play, Square, Hand
-} from 'lucide-react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sys-Diag | Laptop Checker</title>
+    
+    <!-- Tailwind CSS for Styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- FontAwesome for Icons (Replaces lucide-react for standalone HTML) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- React & ReactDOM (Core Libraries) -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel (Compiles JSX to standard JavaScript in the browser) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-// --- MOCK DATA GENERATORS ---
-// Note: Web browsers strictly sandbox data like actual Serial Numbers, deep BIOS versions, 
-// and raw SSD SMART data for security. We simulate these specific metrics for dashboard completeness.
-const mockSerial = "SN-" + Math.random().toString(36).substr(2, 9).toUpperCase();
-const mockBios = "v" + (Math.floor(Math.random() * 10) + 1) + "." + Math.floor(Math.random() * 99);
-const mockDesignCapacity = 55000; 
-const mockFullCapacity = 55000 - Math.floor(Math.random() * 15000); 
-const ssdHealthValue = Math.floor(Math.random() * 10) + 90; 
-
-// --- INLINE WEB WORKER FOR CPU STRESS TEST ---
-const workerCode = `
-  self.onmessage = function(e) {
-    if (e.data === 'start') {
-      let result = 0;
-      while(true) { result += Math.random() * Math.random(); }
-    }
-  };
-`;
-
-export default function App() {
-  const [activeTab, setActiveTab] = useState('System Info');
-  const [testResults, setTestResults] = useState({});
-
-  const logActivity = (testName, details = '') => {
-    setTestResults(prev => ({
-      ...prev,
-      [testName]: { details, time: new Date().toLocaleTimeString() }
-    }));
-  };
-
-  const tabs = [
-    { name: 'System Info', icon: <Info size={18} /> },
-    { name: 'Serial & BIOS', icon: <Settings size={18} /> },
-    { name: 'Battery Health', icon: <Battery size={18} /> },
-    { name: 'Camera Test', icon: <Camera size={18} /> },
-    { name: 'Mic Test', icon: <Mic size={18} /> },
-    { name: 'Speaker Test', icon: <Volume2 size={18} /> },
-    { name: 'Keyboard Test', icon: <Keyboard size={18} /> },
-    { name: 'Mouse Test', icon: <MousePointer2 size={18} /> },
-    { name: 'Touchpad Test', icon: <Hand size={18} /> },
-    { name: 'Display Test', icon: <Monitor size={18} /> },
-    { name: 'USB Detection', icon: <Usb size={18} /> },
-    { name: 'SSD Health', icon: <HardDrive size={18} /> },
-    { name: 'CPU Stress Test', icon: <Cpu size={18} /> },
-    { name: 'RAM Stress Test', icon: <Activity size={18} /> },
-    { name: 'Generate Report', icon: <FileText size={18} /> },
-  ];
-
-  return (
-    <div className="flex h-screen bg-slate-50 text-slate-800 font-sans overflow-hidden">
-      {/* Sidebar */}
-      <div className="w-72 bg-slate-900 text-slate-300 flex flex-col shadow-2xl z-10 relative border-r border-slate-800">
-        <div className="p-6 bg-slate-950 flex items-center space-x-3 border-b border-slate-800">
-          <Activity className="text-indigo-500" size={28} />
-          <h1 className="text-white font-extrabold text-xl tracking-widest uppercase">Sys-Diag</h1>
-        </div>
-        <div className="flex-1 overflow-y-auto py-4 custom-scrollbar">
-          <ul className="space-y-1">
-            {tabs.map((tab) => (
-              <li key={tab.name} className="px-3">
-                <button
-                  onClick={() => setActiveTab(tab.name)}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    activeTab === tab.name 
-                      ? 'bg-indigo-600/15 text-indigo-400 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] border border-indigo-500/20' 
-                      : 'hover:bg-slate-800/50 hover:text-white border border-transparent'
-                  }`}
-                >
-                  {tab.icon}
-                  <span>{tab.name}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 overflow-y-auto relative">
-        <div className="max-w-6xl mx-auto p-10">
-          <header className="mb-8 pb-6 border-b border-slate-200 flex justify-between items-end">
-            <div>
-              <h2 className="text-4xl font-black text-slate-800 tracking-tight">{activeTab}</h2>
-              <p className="text-slate-500 mt-2 text-sm uppercase tracking-wider font-semibold">Hardware Diagnostics & Telemetry</p>
-            </div>
-            {testResults[activeTab] && (
-              <div className="px-4 py-2 rounded-lg text-sm font-bold flex items-center space-x-2 bg-slate-100 text-slate-600 shadow-sm border border-slate-200">
-                <CheckCircle size={16} className="text-indigo-500" />
-                <span>Data Logged</span>
-              </div>
-            )}
-          </header>
-
-          <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/40 border border-slate-200 p-8 min-h-[500px]">
-            {activeTab === 'System Info' && <SystemInfo tabName={activeTab} logActivity={logActivity} />}
-            {activeTab === 'Serial & BIOS' && <SerialBios tabName={activeTab} logActivity={logActivity} />}
-            {activeTab === 'Battery Health' && <BatteryHealth tabName={activeTab} logActivity={logActivity} />}
-            {activeTab === 'Camera Test' && <CameraTest tabName={activeTab} logActivity={logActivity} />}
-            {activeTab === 'Mic Test' && <MicTest tabName={activeTab} logActivity={logActivity} />}
-            {activeTab === 'Speaker Test' && <SpeakerTest tabName={activeTab} logActivity={logActivity} />}
-            {activeTab === 'Keyboard Test' && <KeyboardTest tabName={activeTab} logActivity={logActivity} />}
-            {activeTab === 'Mouse Test' && <MouseTest tabName={activeTab} logActivity={logActivity} />}
-            {activeTab === 'Touchpad Test' && <TouchpadTest tabName={activeTab} logActivity={logActivity} />}
-            {activeTab === 'Display Test' && <DisplayTest tabName={activeTab} logActivity={logActivity} />}
-            {activeTab === 'USB Detection' && <UsbDetection tabName={activeTab} logActivity={logActivity} />}
-            {activeTab === 'SSD Health' && <SsdHealth tabName={activeTab} logActivity={logActivity} />}
-            {activeTab === 'CPU Stress Test' && <CpuStressTest tabName={activeTab} logActivity={logActivity} />}
-            {activeTab === 'RAM Stress Test' && <RamStressTest tabName={activeTab} logActivity={logActivity} />}
-            {activeTab === 'Generate Report' && <GenerateReport results={testResults} />}
-          </div>
-        </div>
-      </div>
-      
-      {/* Global Styles */}
-      <style dangerouslySetInnerHTML={{__html: `
+    <style>
+        /* Custom Scrollbar */
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #475569; }
-      `}} />
-    </div>
-  );
-}
 
-// --- TAB COMPONENTS ---
-
-function SystemInfo({ tabName, logActivity }) {
-  const [gpuInfo, setGpuInfo] = useState('Detecting...');
-  const [osInfo, setOsInfo] = useState('Unknown');
-
-  useEffect(() => {
-    // GPU Detection via WebGL Unmasked Renderer
-    try {
-      const canvas = document.createElement('canvas');
-      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-      if (gl) {
-        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-        setGpuInfo(debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : 'Generic WebGL renderer');
-      } else {
-        setGpuInfo('WebGL not supported');
-      }
-    } catch (e) {
-      setGpuInfo('Detection failed');
-    }
-
-    // OS Detection parsing
-    const ua = navigator.userAgent;
-    let os = "Unknown OS";
-    if (ua.indexOf("Win") !== -1) os = "Windows";
-    if (ua.indexOf("Mac") !== -1) os = "MacOS";
-    if (ua.indexOf("X11") !== -1) os = "UNIX";
-    if (ua.indexOf("Linux") !== -1) os = "Linux";
-    setOsInfo(os);
-
-    logActivity(tabName, 'System diagnostics generated automatically');
-  }, [tabName, logActivity]);
-
-  return (
-    <div className="grid grid-cols-2 gap-6">
-      <InfoCard label="Operating System" value={osInfo} />
-      <InfoCard label="GPU Renderer" value={gpuInfo} />
-      <InfoCard label="Logical CPU Cores" value={navigator.hardwareConcurrency || 'API Restricted'} />
-      <InfoCard label="Device Memory (RAM)" value={navigator.deviceMemory ? `>= ${navigator.deviceMemory} GB` : 'API Restricted'} />
-      <InfoCard label="Screen Resolution" value={`${window.screen.width} x ${window.screen.height}`} />
-      <InfoCard label="Color Depth" value={`${window.screen.colorDepth}-bit`} />
-      <InfoCard label="Browser Agent" value={navigator.userAgent} full />
-    </div>
-  );
-}
-
-function SerialBios({ tabName, logActivity }) {
-  useEffect(() => {
-    logActivity(tabName, `Read simulated`);
-  }, [tabName, logActivity]);
-
-  return (
-    <div className="space-y-6">
-      <div className="p-6 bg-slate-50 rounded-xl border border-slate-200 shadow-sm">
-        <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-2">Hardware Identification</h3>
-        <p className="text-3xl font-mono text-slate-800 font-bold">{mockSerial}</p>
-        <p className="text-sm text-slate-500 mt-2">Motherboard Serial Number</p>
-      </div>
-      <div className="p-6 bg-slate-50 rounded-xl border border-slate-200 shadow-sm">
-        <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-2">BIOS/UEFI Version</h3>
-        <p className="text-2xl font-mono text-slate-800 font-bold">{mockBios}</p>
-        <p className="text-sm text-slate-500 mt-2">Firmware Revision</p>
-      </div>
-      <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-lg flex items-start text-sm">
-        <Info size={18} className="mr-3 flex-shrink-0 mt-0.5" />
-        <p><strong>Note on Web Security:</strong> Native serial numbers and BIOS versions are deeply sandboxed by modern web browsers for privacy. These values are simulated to demonstrate dashboard reporting formatting.</p>
-      </div>
-    </div>
-  );
-}
-
-function BatteryHealth({ tabName, logActivity }) {
-  const [battery, setBattery] = useState(null);
-  const healthPercentage = ((mockFullCapacity / mockDesignCapacity) * 100).toFixed(1);
-
-  useEffect(() => {
-    if ('getBattery' in navigator) {
-      navigator.getBattery().then(batt => {
-        setBattery({
-          level: Math.round(batt.level * 100),
-          charging: batt.charging
-        });
-        logActivity(tabName, `Level: ${Math.round(batt.level * 100)}%, Health: ${healthPercentage}%`);
-      });
-    } else {
-      logActivity(tabName, 'Battery API not supported');
-    }
-  }, [tabName, logActivity]);
-
-  return (
-    <div className="space-y-8">
-      <div className="grid grid-cols-2 gap-6">
-        <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 text-center shadow-sm">
-          <h3 className="text-slate-600 font-bold uppercase tracking-wider mb-2 text-sm">Est. Battery Health</h3>
-          <div className="text-5xl font-black text-slate-800 mb-2">{healthPercentage}%</div>
-          <p className="text-sm text-slate-500 font-medium">Wear Level Simulation</p>
-        </div>
-        
-        <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 text-center shadow-sm">
-          <h3 className="text-slate-600 font-bold uppercase tracking-wider mb-2 text-sm">Current Charge</h3>
-          <div className="text-5xl font-black text-indigo-600 mb-2">
-            {battery ? `${battery.level}%` : 'N/A'}
-          </div>
-          <p className="text-sm font-bold text-indigo-800/70">
-            {battery ? (battery.charging ? 'Plugged In / Charging' : 'On Battery Power') : 'Status Unknown'}
-          </p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <InfoCard label="Design Capacity" value={`${mockDesignCapacity} mWh`} />
-        <InfoCard label="Full Charge Capacity" value={`${mockFullCapacity} mWh`} />
-      </div>
-    </div>
-  );
-}
-
-function CameraTest({ tabName, logActivity }) {
-  const videoRef = useRef(null);
-  const [stream, setStream] = useState(null);
-  const [error, setError] = useState('');
-
-  const startCamera = async () => {
-    try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
-      setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-      }
-      logActivity(tabName, 'Webcam stream acquired');
-      setError('');
-    } catch (err) {
-      setError(err.message);
-      logActivity(tabName, `Error: ${err.message}`);
-    }
-  };
-
-  const stopCamera = useCallback(() => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      setStream(null);
-    }
-  }, [stream]);
-
-  useEffect(() => {
-    return () => stopCamera(); 
-  }, [stopCamera]);
-
-  return (
-    <div className="flex flex-col items-center space-y-6">
-      <div className="w-full max-w-2xl aspect-video bg-slate-900 rounded-xl overflow-hidden relative shadow-inner border border-slate-800">
-        {stream ? (
-          <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover transform scale-x-[-1]" />
-        ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-600">
-            <Camera size={48} className="mb-4 opacity-50" />
-            <p className="font-semibold uppercase tracking-widest">{error ? `Error: ${error}` : 'Stream Inactive'}</p>
-          </div>
-        )}
-      </div>
-      <div className="space-x-4">
-        {!stream ? (
-          <button onClick={startCamera} className="btn-primary flex items-center"><Play size={18} className="mr-2"/> Initiate Video Feed</button>
-        ) : (
-          <button onClick={stopCamera} className="btn-secondary flex items-center"><Square size={18} className="mr-2"/> Terminate Feed</button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function MicTest({ tabName, logActivity }) {
-  const volumeBarRef = useRef(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const audioContextRef = useRef(null);
-  const streamRef = useRef(null);
-  const requestRef = useRef(null);
-
-  const startMic = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-      
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      audioContextRef.current = audioContext;
-      const analyser = audioContext.createAnalyser();
-      const microphone = audioContext.createMediaStreamSource(stream);
-      
-      analyser.smoothingTimeConstant = 0.8;
-      analyser.fftSize = 256;
-      microphone.connect(analyser);
-      
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
-      setIsRecording(true);
-      logActivity(tabName, 'Audio stream active');
-
-      const updateVolume = () => {
-        analyser.getByteFrequencyData(dataArray);
-        let sum = 0;
-        for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
-        const average = sum / dataArray.length;
-        const percentage = Math.min(100, Math.max(0, (average / 128) * 100));
-        
-        if (volumeBarRef.current) {
-          volumeBarRef.current.style.width = `${percentage}%`;
-          if (percentage > 80) volumeBarRef.current.style.backgroundColor = '#6366f1'; 
-          else if (percentage > 40) volumeBarRef.current.style.backgroundColor = '#818cf8'; 
-          else volumeBarRef.current.style.backgroundColor = '#a5b4fc'; 
-        }
-        requestRef.current = requestAnimationFrame(updateVolume);
-      };
-      updateVolume();
-    } catch (err) {
-      logActivity(tabName, `Error: ${err.message}`);
-    }
-  };
-
-  const stopMic = useCallback(() => {
-    if (requestRef.current) cancelAnimationFrame(requestRef.current);
-    if (audioContextRef.current) audioContextRef.current.close();
-    if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
-    if (volumeBarRef.current) volumeBarRef.current.style.width = '0%';
-    setIsRecording(false);
-  }, []);
-
-  useEffect(() => {
-    return () => stopMic();
-  }, [stopMic]);
-
-  return (
-    <div className="flex flex-col items-center justify-center space-y-12 h-full py-10">
-      <div className="w-full max-w-xl">
-        <div className="flex justify-between text-sm font-bold text-slate-400 uppercase tracking-widest mb-3">
-          <span>Quiet</span>
-          <span>Loud</span>
-        </div>
-        <div className="h-12 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner border border-slate-200">
-          <div 
-            ref={volumeBarRef} 
-            className="h-full bg-indigo-500 transition-all duration-75 ease-out w-0"
-          ></div>
-        </div>
-      </div>
-      <div className="flex space-x-4">
-        {!isRecording ? (
-          <button onClick={startMic} className="btn-primary flex items-center">
-            <Mic size={18} className="mr-2"/> Open Mic Channel
-          </button>
-        ) : (
-          <button onClick={stopMic} className="btn-secondary flex items-center">
-             <Square size={18} className="mr-2"/> Close Channel
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function SpeakerTest({ tabName, logActivity }) {
-  const audioCtxRef = useRef(null);
-
-  const playTone = (panValue) => {
-    if (!audioCtxRef.current) {
-      audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    const ctx = audioCtxRef.current;
-    
-    const oscillator = ctx.createOscillator();
-    const panner = ctx.createStereoPanner();
-    const gainNode = ctx.createGain();
-
-    oscillator.type = 'sine';
-    oscillator.frequency.value = 440; 
-    panner.pan.value = panValue; 
-    
-    gainNode.gain.setValueAtTime(1, ctx.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
-
-    oscillator.connect(panner);
-    panner.connect(gainNode);
-    gainNode.connect(ctx.destination);
-
-    oscillator.start();
-    oscillator.stop(ctx.currentTime + 1.5);
-    
-    logActivity(tabName, panValue === -1 ? 'Left Channel Fired' : panValue === 1 ? 'Right Channel Fired' : 'Stereo Center Fired');
-  };
-
-  return (
-    <div className="flex flex-col items-center justify-center h-full space-y-10 py-10">
-      <p className="text-slate-600 text-center max-w-md font-medium">
-        Trigger synthetic tones to verify physical speaker arrays and audio hardware routing.
-      </p>
-      
-      <div className="flex space-x-6">
-        <button onClick={() => playTone(-1)} className="w-36 h-36 rounded-2xl bg-white hover:bg-slate-50 border-2 border-slate-200 hover:border-indigo-400 flex flex-col items-center justify-center transition-all shadow-sm group">
-          <Volume2 size={36} className="text-slate-400 group-hover:text-indigo-600 mb-3 transition-colors" />
-          <span className="font-bold text-slate-700 uppercase text-sm tracking-wider">Left CH</span>
-        </button>
-        
-        <button onClick={() => playTone(0)} className="w-36 h-36 rounded-2xl bg-white hover:bg-slate-50 border-2 border-slate-200 hover:border-indigo-400 flex flex-col items-center justify-center transition-all shadow-sm group">
-          <Volume2 size={36} className="text-slate-400 group-hover:text-indigo-600 mb-3 transition-colors" />
-          <span className="font-bold text-slate-700 uppercase text-sm tracking-wider">Stereo</span>
-        </button>
-
-        <button onClick={() => playTone(1)} className="w-36 h-36 rounded-2xl bg-white hover:bg-slate-50 border-2 border-slate-200 hover:border-indigo-400 flex flex-col items-center justify-center transition-all shadow-sm group">
-          <Volume2 size={36} className="text-slate-400 group-hover:text-indigo-600 mb-3 transition-colors" />
-          <span className="font-bold text-slate-700 uppercase text-sm tracking-wider">Right CH</span>
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function KeyboardTest({ tabName, logActivity }) {
-  const [pressedKeys, setPressedKeys] = useState(new Set());
-  const [lastKey, setLastKey] = useState(null);
-
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      e.preventDefault(); 
-      setPressedKeys(prev => new Set(prev).add(e.code));
-      setLastKey(e.code);
-      logActivity(tabName, `Unique keystrokes: ${pressedKeys.size + 1}`);
-    };
-    const handleKeyUp = (e) => { e.preventDefault(); };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, [pressedKeys, tabName, logActivity]);
-
-  const rows = [
-    ['Escape', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12', 'PrintScreen', 'ScrollLock', 'Pause'],
-    ['Backquote', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'Digit0', 'Minus', 'Equal', 'Backspace', 'Insert', 'Home', 'PageUp', 'NumLock', 'NumpadDivide', 'NumpadMultiply', 'NumpadSubtract'],
-    ['Tab', 'KeyQ', 'KeyW', 'KeyE', 'KeyR', 'KeyT', 'KeyY', 'KeyU', 'KeyI', 'KeyO', 'KeyP', 'BracketLeft', 'BracketRight', 'Backslash', 'Delete', 'End', 'PageDown', 'Numpad7', 'Numpad8', 'Numpad9', 'NumpadAdd'],
-    ['CapsLock', 'KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyG', 'KeyH', 'KeyJ', 'KeyK', 'KeyL', 'Semicolon', 'Quote', 'Enter', 'Numpad4', 'Numpad5', 'Numpad6', 'blank'],
-    ['ShiftLeft', 'KeyZ', 'KeyX', 'KeyC', 'KeyV', 'KeyB', 'KeyN', 'KeyM', 'Comma', 'Period', 'Slash', 'ShiftRight', 'ArrowUp', 'Numpad1', 'Numpad2', 'Numpad3', 'NumpadEnter'],
-    ['ControlLeft', 'MetaLeft', 'AltLeft', 'Space', 'AltRight', 'ContextMenu', 'ControlRight', 'ArrowLeft', 'ArrowDown', 'ArrowRight', 'Numpad0', 'NumpadDecimal', 'blank']
-  ];
-
-  const getKeyLabel = (code) => {
-    if (code === 'blank') return '';
-    const map = {
-      'Escape': 'Esc', 'Minus': '-', 'Equal': '=', 'BracketLeft': '[', 'BracketRight': ']',
-      'Backslash': '\\', 'Semicolon': ';', 'Quote': "'", 'Comma': ',', 'Period': '.', 'Slash': '/',
-      'ControlLeft': 'Ctrl', 'ControlRight': 'Ctrl', 'AltLeft': 'Alt', 'AltRight': 'Alt',
-      'ShiftLeft': 'Shift', 'ShiftRight': 'Shift', 'Space': 'Space', 'Backquote': '`',
-      'MetaLeft': 'Win', 'MetaRight': 'Win', 'ContextMenu': 'Menu',
-      'ArrowUp': '↑', 'ArrowDown': '↓', 'ArrowLeft': '←', 'ArrowRight': '→',
-      'PrintScreen': 'PrtScn', 'ScrollLock': 'ScrLk', 'Pause': 'Pause',
-      'Insert': 'Ins', 'Delete': 'Del', 'Home': 'Home', 'End': 'End', 'PageUp': 'PgUp', 'PageDown': 'PgDn',
-      'NumLock': 'NumLk', 'NumpadDivide': '/', 'NumpadMultiply': '*', 'NumpadSubtract': '-',
-      'NumpadAdd': '+', 'NumpadEnter': 'Enter', 'NumpadDecimal': '.'
-    };
-    if (code.startsWith('Key')) return code.slice(3);
-    if (code.startsWith('Digit')) return code.slice(5);
-    if (code.startsWith('Numpad')) return code.slice(6);
-    return map[code] || code;
-  };
-
-  return (
-    <div className="flex flex-col items-center">
-      <div className="mb-6 h-12 flex items-center justify-center w-full bg-slate-50 border border-slate-200 rounded-lg text-lg font-mono font-bold text-slate-700 shadow-sm">
-        {lastKey ? `Hardware Code Intercepted: ${lastKey}` : 'Awaiting Keyboard Input...'}
-      </div>
-      
-      <div className="bg-slate-100 p-5 rounded-xl border border-slate-300 w-full shadow-inner overflow-x-auto">
-        <div className="min-w-[1000px]">
-          {rows.map((row, i) => (
-            <div key={i} className={`flex mb-1 ${i === 0 ? 'mb-4' : ''}`}>
-              {row.map((code, j) => {
-                if (code === 'blank') return <div key={j} className="w-12 mx-0.5"></div>;
-                const isPressed = pressedKeys.has(code);
-                // Basic layout widths for realism
-                let widthClass = "w-10";
-                if (code === 'Space') widthClass = "w-64";
-                else if (['ShiftLeft', 'Enter', 'CapsLock', 'Backspace', 'Tab', 'ShiftRight'].includes(code)) widthClass = "w-20";
-                else if (['ControlLeft', 'ControlRight', 'AltLeft', 'AltRight'].includes(code)) widthClass = "w-14";
-                else if (['Numpad0'].includes(code)) widthClass = "w-20";
-                
-                // Add spacing for clusters
-                let marginClass = "mx-0.5";
-                if (['F4', 'F8', 'F12', 'Pause', 'PageUp', 'PageDown', 'ShiftRight', 'ControlRight', 'ArrowRight'].includes(code)) marginClass = "mr-4 ml-0.5";
-
-                return (
-                  <div 
-                    key={code + j} 
-                    className={`
-                      h-10 flex items-center justify-center rounded border font-mono text-xs font-semibold transition-colors select-none
-                      ${widthClass} ${marginClass}
-                      ${isPressed 
-                        ? 'bg-indigo-600 text-white border-indigo-700 shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]' 
-                        : 'bg-white text-slate-700 border-slate-300 shadow-sm'}
-                    `}
-                  >
-                    {getKeyLabel(code)}
-                  </div>
-                );
-              })}
-            </div>
-          ))}
-        </div>
-      </div>
-      <button 
-        onClick={() => setPressedKeys(new Set())} 
-        className="mt-6 text-sm text-indigo-600 hover:text-indigo-800 font-bold uppercase tracking-widest"
-      >
-        Clear Key Matrix
-      </button>
-    </div>
-  );
-}
-
-function MouseTest({ tabName, logActivity }) {
-  const [data, setData] = useState({ x: 0, y: 0, clicks: { left: 0, middle: 0, right: 0 }, scroll: 0 });
-
-  const handleMouseMove = (e) => setData(p => ({ ...p, x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY }));
-  const handleMouseDown = (e) => {
-    e.preventDefault();
-    setData(p => {
-      const newClicks = { ...p.clicks };
-      if (e.button === 0) newClicks.left++;
-      if (e.button === 1) newClicks.middle++;
-      if (e.button === 2) newClicks.right++;
-      return { ...p, clicks: newClicks };
-    });
-    logActivity(tabName, 'Physical mouse click recorded');
-  };
-
-  return (
-    <div className="grid grid-cols-3 gap-6 h-[400px]">
-      <div 
-        className="col-span-2 bg-slate-900 rounded-xl relative overflow-hidden cursor-crosshair shadow-inner border border-slate-800"
-        onMouseMove={handleMouseMove}
-        onMouseDown={handleMouseDown}
-        onContextMenu={e => e.preventDefault()}
-      >
-        <div className="absolute inset-0 flex items-center justify-center text-slate-700 pointer-events-none select-none text-2xl font-black tracking-widest">
-          TRACKING SURFACE
-        </div>
-        <div className="absolute top-0 bottom-0 border-l border-indigo-500/50 pointer-events-none" style={{ left: data.x }}></div>
-        <div className="absolute left-0 right-0 border-t border-indigo-500/50 pointer-events-none" style={{ top: data.y }}></div>
-        <div 
-          className="absolute w-2 h-2 bg-indigo-400 rounded-full transform -translate-x-1 -translate-y-1 pointer-events-none shadow-[0_0_8px_rgba(99,102,241,0.8)]"
-          style={{ left: data.x, top: data.y }}
-        ></div>
-      </div>
-      
-      <div className="bg-slate-50 p-6 rounded-xl flex flex-col space-y-4 border border-slate-200">
-        <h3 className="font-black text-slate-800 border-b border-slate-200 pb-2 uppercase tracking-widest text-sm">Telemetry</h3>
-        <div>
-          <span className="text-xs font-bold text-slate-400 uppercase">Axis Coordinates</span>
-          <p className="font-mono text-lg font-bold text-indigo-700">X: {data.x}, Y: {data.y}</p>
-        </div>
-        <div>
-          <span className="text-xs font-bold text-slate-400 uppercase">Switch Actuations</span>
-          <ul className="font-mono text-sm space-y-2 mt-2 font-semibold text-slate-700">
-            <li className="flex justify-between border-b border-slate-100 pb-1"><span>Left Button</span> <span>{data.clicks.left}</span></li>
-            <li className="flex justify-between border-b border-slate-100 pb-1"><span>Middle Button</span> <span>{data.clicks.middle}</span></li>
-            <li className="flex justify-between border-b border-slate-100 pb-1"><span>Right Button</span> <span>{data.clicks.right}</span></li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function TouchpadTest({ tabName, logActivity }) {
-  const [events, setEvents] = useState({ scrolls: 0, multiTouch: false });
-
-  const handleWheel = (e) => {
-    setEvents(p => ({ ...p, scrolls: p.scrolls + 1 }));
-    logActivity(tabName, 'Two-finger scroll registered');
-  };
-
-  const handleTouch = (e) => {
-    if (e.touches.length >= 2) {
-      setEvents(p => ({ ...p, multiTouch: true }));
-      logActivity(tabName, 'Multi-touch gesture registered');
-    }
-  };
-
-  return (
-    <div className="flex flex-col items-center justify-center h-full space-y-6">
-      <div className="text-center max-w-md mb-4">
-        <Hand size={48} className="mx-auto mb-4 text-indigo-500" />
-        <h3 className="text-xl font-bold text-slate-800 mb-2">Trackpad Gestures</h3>
-        <p className="text-slate-500 text-sm font-medium">Use your trackpad to scroll vertically/horizontally, or use multi-finger gestures inside the zone below.</p>
-      </div>
-      
-      <div 
-        className="w-full max-w-2xl h-56 bg-slate-800 hover:bg-slate-700 transition-colors rounded-2xl flex items-center justify-center select-none shadow-inner touch-none cursor-crosshair border border-slate-700"
-        onWheel={handleWheel}
-        onTouchMove={handleTouch}
-        onTouchStart={handleTouch}
-      >
-        <span className="font-bold tracking-widest text-lg text-slate-500 pointer-events-none">INTERACTION ZONE</span>
-      </div>
-      
-      <div className="flex space-x-12 pt-4">
-        <div className="flex flex-col items-center">
-           <span className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">Scroll Events</span>
-           <span className="text-4xl font-mono font-black text-indigo-600">{events.scrolls}</span>
-        </div>
-        <div className="flex flex-col items-center">
-           <span className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">Multi-Touch</span>
-           <span className={`text-4xl font-mono font-black ${events.multiTouch ? 'text-indigo-600' : 'text-slate-300'}`}>
-             {events.multiTouch ? 'YES' : 'NO'}
-           </span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function DisplayTest({ tabName, logActivity }) {
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [colorIndex, setColorIndex] = useState(0);
-  const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFFFFF', '#000000'];
-  const testDivRef = useRef(null);
-
-  const startTest = async () => {
-    try {
-      if (testDivRef.current.requestFullscreen) {
-        await testDivRef.current.requestFullscreen();
-        setIsFullscreen(true);
-        logActivity(tabName, 'Fullscreen palette test executed');
-      }
-    } catch (err) {
-      alert("Fullscreen API denied: " + err.message);
-    }
-  };
-
-  const handleFullscreenChange = () => {
-    if (!document.fullscreenElement) {
-      setIsFullscreen(false);
-      setColorIndex(0);
-    }
-  };
-
-  useEffect(() => {
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
-
-  const handleClick = () => {
-    if (isFullscreen) setColorIndex((prev) => (prev + 1) % colors.length);
-  };
-
-  return (
-    <div className="flex flex-col items-center justify-center h-full space-y-6">
-      <div className="max-w-md text-center">
-        <Monitor size={48} className="mx-auto mb-4 text-indigo-500" />
-        <h3 className="text-xl font-bold text-slate-800 mb-2">Matrix Dead Pixel Check</h3>
-        <p className="mb-6 text-slate-500 text-sm font-medium">
-          Forces full-screen solid RGB arrays (Red, Green, Blue, White, Black) to assist in visually identifying stuck or dead pixels on the physical panel.
-        </p>
-        <button onClick={startTest} className="btn-primary">Launch Display Array</button>
-      </div>
-
-      <div 
-        ref={testDivRef} 
-        onClick={handleClick}
-        className="fixed inset-0 z-50 flex items-center justify-center cursor-pointer"
-        style={{ display: isFullscreen ? 'flex' : 'none', backgroundColor: colors[colorIndex] }}
-      >
-        {colorIndex === 0 && (
-          <div className="bg-black/70 text-white font-mono font-bold tracking-widest p-4 rounded-lg pointer-events-none select-none">
-            CLICK TO CYCLE // ESC TO ABORT
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function UsbDetection({ tabName, logActivity }) {
-  const [supported, setSupported] = useState(false);
-  const [device, setDevice] = useState(null);
-
-  useEffect(() => {
-    if ('usb' in navigator) {
-      setSupported(true);
-      logActivity(tabName, 'WebUSB API verified');
-    }
-  }, [tabName, logActivity]);
-
-  const scanUsb = async () => {
-    try {
-      const selectedDevice = await navigator.usb.requestDevice({ filters: [] });
-      setDevice({
-        name: selectedDevice.productName || 'Unknown Device',
-        vendor: selectedDevice.manufacturerName || 'Unknown Vendor',
-        version: `${selectedDevice.usbVersionMajor}.${selectedDevice.usbVersionMinor}`
-      });
-      logActivity(tabName, `Read hardware root hub: ${selectedDevice.productName}`);
-    } catch (err) {
-      console.log("USB request cancelled or failed", err);
-    }
-  };
-
-  return (
-    <div className="flex flex-col items-center justify-center h-full space-y-6 py-10">
-      {supported ? (
-        <>
-          <div className="text-center max-w-md">
-            <Usb size={48} className="mx-auto mb-4 text-indigo-500" />
-            <h3 className="text-xl font-bold text-slate-800 mb-2">Universal Serial Bus Array</h3>
-            <p className="text-slate-500 text-sm font-medium mb-6">
-              Interfaces directly with the OS hardware abstraction layer to verify physical USB port connectivity and controller logic.
-            </p>
-            <button onClick={scanUsb} className="btn-primary">Interrogate USB Bus</button>
-          </div>
-
-          {device && (
-            <div className="bg-slate-50 border border-slate-200 p-6 rounded-xl w-full max-w-md mt-6 shadow-sm">
-              <h4 className="font-black text-slate-700 uppercase tracking-widest mb-4 border-b border-slate-200 pb-2 text-sm">Controller Response</h4>
-              <ul className="space-y-3 text-sm text-slate-600 font-mono">
-                <li><span className="font-bold text-slate-800 mr-2">PRODUCT:</span> {device.name}</li>
-                <li><span className="font-bold text-slate-800 mr-2">VENDOR:</span> {device.vendor}</li>
-                <li><span className="font-bold text-slate-800 mr-2">PROTOCOL:</span> USB {device.version}</li>
-              </ul>
-            </div>
-          )}
-        </>
-      ) : (
-        <div className="text-center text-slate-500 bg-slate-50 p-6 rounded-xl border border-slate-200">
-          <Activity size={48} className="mx-auto mb-4 opacity-50" />
-          <h3 className="text-lg font-bold mb-2">WebUSB Unavailable</h3>
-          <p className="text-sm">This browser environment strictly isolates the USB bus layer.</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SsdHealth({ tabName, logActivity }) {
-  useEffect(() => {
-    logActivity(tabName, `SMART read simulated`);
-  }, [tabName, logActivity]);
-
-  const circumference = 2 * Math.PI * 60; 
-  const strokeDashoffset = circumference - (ssdHealthValue / 100) * circumference;
-
-  return (
-    <div className="flex flex-col items-center justify-center h-full space-y-8 py-4">
-      <div className="relative flex items-center justify-center">
-        <svg className="transform -rotate-90 w-48 h-48 drop-shadow-md">
-          <circle cx="96" cy="96" r="60" stroke="currentColor" strokeWidth="10" fill="transparent" className="text-slate-100" />
-          <circle 
-            cx="96" cy="96" r="60" stroke="currentColor" strokeWidth="10" fill="transparent" strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={strokeDashoffset}
-            className="text-indigo-500 transition-all duration-1000 ease-out"
-          />
-        </svg>
-        <div className="absolute flex flex-col items-center">
-          <span className="text-4xl font-black text-slate-800">{ssdHealthValue}%</span>
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Life Remaining</span>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 w-full max-w-lg">
-        <InfoCard label="Drive Interface" value="NVMe PCIe 4.0" />
-        <InfoCard label="NAND Temperature" value={`${Math.floor(Math.random() * 15) + 30}°C`} />
-        <InfoCard label="Host Reads (Lifetime)" value={`${Math.floor(Math.random() * 5000) + 1000} GB`} />
-        <InfoCard label="Host Writes (Lifetime)" value={`${Math.floor(Math.random() * 4000) + 800} GB`} />
-      </div>
-      
-      <p className="text-xs text-slate-400 mt-4 flex items-center font-medium">
-        <Info size={14} className="mr-1" />
-        Raw SMART blocks cannot be accessed via web protocols. Values simulated for telemetry format display.
-      </p>
-    </div>
-  );
-}
-
-function CpuStressTest({ tabName, logActivity }) {
-  const [workers, setWorkers] = useState([]);
-  const [testing, setTesting] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState(0);
-  const logicalCores = navigator.hardwareConcurrency || 4;
-
-  const startStressTest = () => {
-    const newWorkers = [];
-    const blob = new Blob([workerCode], { type: 'application/javascript' });
-    const workerUrl = URL.createObjectURL(blob);
-
-    for (let i = 0; i < logicalCores; i++) {
-      const worker = new Worker(workerUrl);
-      worker.postMessage('start');
-      newWorkers.push(worker);
-    }
-    
-    setWorkers(newWorkers);
-    setTesting(true);
-    setTimeRemaining(10); 
-    logActivity(tabName, `Threaded burn-in initiated on ${logicalCores} logic cores`);
-  };
-
-  const stopStressTest = useCallback(() => {
-    workers.forEach(worker => worker.terminate());
-    setWorkers([]);
-    setTesting(false);
-    setTimeRemaining(0);
-    logActivity(tabName, 'Burn-in cycle terminated');
-  }, [workers, tabName, logActivity]);
-
-  useEffect(() => {
-    let timer;
-    if (testing && timeRemaining > 0) {
-      timer = setTimeout(() => setTimeRemaining(t => t - 1), 1000);
-    } else if (testing && timeRemaining === 0) {
-      stopStressTest();
-    }
-    return () => clearTimeout(timer);
-  }, [testing, timeRemaining, stopStressTest]);
-
-  useEffect(() => {
-    return () => workers.forEach(w => w.terminate());
-  }, [workers]);
-
-  return (
-    <div className="flex flex-col items-center justify-center h-full space-y-8 py-10">
-      <div className="text-center">
-        <Cpu size={64} className={`mx-auto mb-4 ${testing ? 'text-indigo-600 animate-pulse' : 'text-slate-400'}`} />
-        <h3 className="text-2xl font-bold text-slate-800 mb-2">Multithreaded Burn-In</h3>
-        <p className="text-slate-500 max-w-md mx-auto text-sm font-medium">
-          Deploys isolated Web Workers across all <strong>{logicalCores}</strong> available hardware threads to enforce 100% logic gate utilization, verifying thermal bounds and processor stability.
-        </p>
-      </div>
-
-      {testing ? (
-        <div className="text-center w-full max-w-md bg-slate-50 p-8 rounded-xl border border-slate-200 shadow-inner">
-          <div className="text-4xl font-mono font-black text-indigo-600 mb-4">{timeRemaining}s</div>
-          <div className="h-3 bg-slate-200 rounded-full overflow-hidden mb-6">
-             <div 
-               className="h-full bg-indigo-500 transition-all duration-1000 ease-linear" 
-               style={{ width: `${((10 - timeRemaining) / 10) * 100}%` }}
-             ></div>
-          </div>
-          <p className="text-xs uppercase tracking-widest font-bold text-slate-400 mb-6">Hardware Under Maximum Load</p>
-          <button onClick={stopStressTest} className="btn-secondary w-full">Halt Execution</button>
-        </div>
-      ) : (
-        <button onClick={startStressTest} className="btn-primary flex items-center text-lg px-8 py-4">
-          <Activity size={24} className="mr-3" /> Initiate Thread Saturation
-        </button>
-      )}
-    </div>
-  );
-}
-
-function RamStressTest({ tabName, logActivity }) {
-  const [allocatedSize, setAllocatedSize] = useState(0); 
-  const [memoryChunks, setMemoryChunks] = useState([]);
-  
-  const CHUNK_SIZE_MB = 50; 
-  const MAX_MB = navigator.deviceMemory ? navigator.deviceMemory * 1024 * 0.4 : 1000; 
-
-  const allocateMemory = () => {
-    if (allocatedSize >= MAX_MB) return;
-    try {
-      const chunk = new Array(CHUNK_SIZE_MB * 10000).fill('010101010101010101010101010101010101');
-      setMemoryChunks(prev => [...prev, chunk]);
-      setAllocatedSize(prev => prev + CHUNK_SIZE_MB);
-      logActivity(tabName, `Heap committed: ${allocatedSize + CHUNK_SIZE_MB} MB`);
-    } catch (e) {
-      logActivity(tabName, 'OOM Exception / Hard Limit Reached');
-    }
-  };
-
-  const freeMemory = useCallback(() => {
-    setMemoryChunks([]);
-    setAllocatedSize(0);
-    logActivity(tabName, 'Heap allocation released');
-  }, [tabName, logActivity]);
-
-  useEffect(() => {
-    return () => setMemoryChunks([]);
-  }, []);
-
-  const percentage = Math.min(100, (allocatedSize / MAX_MB) * 100);
-
-  return (
-    <div className="flex flex-col items-center justify-center h-full space-y-8 py-10">
-      <div className="text-center max-w-md">
-        <Activity size={64} className="mx-auto mb-4 text-indigo-500" />
-        <h3 className="text-2xl font-bold text-slate-800 mb-2">Memory Heap Saturation</h3>
-        <p className="text-slate-500 text-sm font-medium">
-          Dynamically allocates large array structures directly into physical memory to test cell integrity. 
-          <br/><span className="text-xs text-indigo-600 font-bold mt-2 block">System restricted to max ~{MAX_MB}MB to prevent OS kernel panic.</span>
-        </p>
-      </div>
-
-      <div className="w-full max-w-lg bg-slate-50 p-8 rounded-xl border border-slate-200 shadow-sm">
-        <div className="flex justify-between mb-3 items-end">
-          <span className="font-bold text-slate-400 uppercase tracking-widest text-xs">Allocated Blocks</span>
-          <span className="font-mono font-black text-xl text-indigo-700">{allocatedSize} MB <span className="text-sm font-normal text-slate-400">/ {MAX_MB} MB</span></span>
-        </div>
-        <div className="h-4 bg-slate-200 rounded-full overflow-hidden shadow-inner mb-8">
-          <div 
-            className="h-full bg-indigo-500 transition-all duration-300 ease-out" 
-            style={{ width: `${percentage}%` }}
-          ></div>
-        </div>
-        
-        <div className="flex space-x-4">
-          <button 
-            onClick={allocateMemory} 
-            disabled={allocatedSize >= MAX_MB}
-            className={`flex-1 py-3.5 rounded-lg font-bold shadow-md transition-all ${allocatedSize >= MAX_MB ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-indigo-600 hover:bg-indigo-700 text-white active:scale-95'}`}
-          >
-            Force +{CHUNK_SIZE_MB}MB
-          </button>
-          <button 
-            onClick={freeMemory} 
-            disabled={allocatedSize === 0}
-            className={`flex-1 py-3.5 rounded-lg font-bold transition-all border-2 ${allocatedSize === 0 ? 'border-slate-100 text-slate-300 cursor-not-allowed bg-transparent' : 'border-slate-800 text-slate-800 hover:bg-slate-800 hover:text-white active:scale-95'}`}
-          >
-            Purge Memory
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function GenerateReport({ results }) {
-  const handlePrint = () => window.print();
-
-  const totalTests = 14; 
-  const completedTests = Object.keys(results).length;
-
-  return (
-    <div className="space-y-6">
-      <style dangerouslySetInnerHTML={{__html: `
+        /* Print Styles for Generate Report Tab */
         @media print {
-          body * { visibility: hidden; }
-          .print-section, .print-section * { visibility: visible; }
-          .print-section { position: absolute; left: 0; top: 0; width: 100%; padding: 40px; }
-          .no-print { display: none !important; }
+            body * { visibility: hidden; }
+            .print-section, .print-section * { visibility: visible; }
+            .print-section { position: absolute; left: 0; top: 0; width: 100%; padding: 40px; }
+            .no-print { display: none !important; }
         }
-      `}} />
 
-      <div className="print-section bg-white">
-        <div className="flex justify-between items-end border-b-4 border-slate-900 pb-6 mb-8">
-          <div>
-            <h2 className="text-4xl font-black text-slate-900 tracking-tighter uppercase">Hardware Telemetry Log</h2>
-            <p className="text-slate-500 mt-2 font-mono">Timestamp: {new Date().toLocaleString()}</p>
-          </div>
-          <div className="text-right">
-            <p className="font-mono font-black text-2xl text-slate-800">{mockSerial}</p>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Motherboard UUID</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-6 mb-10">
-          <div className="bg-slate-50 p-6 rounded-xl border border-slate-200">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Modules Executed</p>
-            <p className="text-3xl font-black text-slate-800">{completedTests} <span className="text-lg text-slate-400">/ {totalTests}</span></p>
-          </div>
-          <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 col-span-2">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Host Environment</p>
-            <p className="text-xl font-bold text-slate-800 truncate">{navigator.userAgent}</p>
-          </div>
-        </div>
-
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-slate-900 text-slate-100 uppercase text-xs tracking-widest">
-              <th className="py-4 px-6 font-bold rounded-tl-lg">Diagnostic Module</th>
-              <th className="py-4 px-6 font-bold">Latest Output / Telemetry Data</th>
-              <th className="py-4 px-6 font-bold text-right rounded-tr-lg">Timestamp</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[
-              'System Info', 'Serial & BIOS', 'Battery Health', 'Camera Test', 
-              'Mic Test', 'Speaker Test', 'Keyboard Test', 'Mouse Test', 'Touchpad Test',
-              'Display Test', 'USB Detection', 'SSD Health', 'CPU Stress Test', 'RAM Stress Test'
-            ].map(test => {
-              const res = results[test] || { details: 'No telemetry recorded', time: '--:--:--' };
-              const isUntested = !results[test];
-              return (
-                <tr key={test} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                  <td className="py-4 px-6 font-bold text-slate-800">{test}</td>
-                  <td className={`py-4 px-6 text-sm font-medium ${isUntested ? 'text-slate-400 italic' : 'text-slate-600'}`}>{res.details}</td>
-                  <td className="py-4 px-6 text-sm font-mono text-slate-400 text-right">{res.time}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="flex justify-center mt-10 no-print">
-        <button 
-          onClick={handlePrint}
-          className="bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 px-10 rounded-xl shadow-xl shadow-slate-900/20 flex items-center transition-all active:scale-95 uppercase tracking-widest text-sm"
-        >
-          <FileText className="mr-3" size={20} /> Export Telemetry Report
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// --- UTILITY COMPONENTS ---
-
-function InfoCard({ label, value, full = false }) {
-  return (
-    <div className={`p-5 bg-slate-50 rounded-xl border border-slate-200 shadow-sm ${full ? 'col-span-2' : ''}`}>
-      <span className="text-xs text-slate-400 uppercase font-bold tracking-widest block mb-2">{label}</span>
-      <span className="text-lg font-bold text-slate-800 break-words">{value}</span>
-    </div>
-  );
-}
-
-// Inject button styles dynamically
-if (typeof document !== 'undefined') {
-  const style = document.createElement('style');
-  style.textContent = `
-    @tailwind components;
-    @layer components {
-      .btn-primary { background-color: #4f46e5; color: white; padding: 0.75rem 2rem; border-radius: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.875rem; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); transition: all 150ms ease; border: 1px solid #4338ca; }
-      .btn-primary:hover { background-color: #4338ca; box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3); }
-      .btn-primary:active { transform: scale(0.97); }
-      
-      .btn-secondary { background-color: #f1f5f9; color: #334155; padding: 0.75rem 2rem; border-radius: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.875rem; transition: all 150ms ease; border: 1px solid #cbd5e1; }
-      .btn-secondary:hover { background-color: #e2e8f0; color: #0f172a; }
-      .btn-secondary:active { transform: scale(0.97); }
-    }
-  `;
-  document.head.appendChild(style);
-}
-
-
+        /* Button Styles */
+        .btn-primary { background-color: #4f46e5; color: white; padding: 0.75rem 2rem; border-radius: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.875rem; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); transition: all 150ms ease; border: 1px solid #4338ca; }
+        .btn-primary:hover { background-color: #4338ca; box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3); }
+        .btn-primary:active { transform: scale(0.97); }
         
+        .btn-secondary { background-color: #f1f5f9; color: #334155; padding: 0.75rem 2rem; border-radius: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.875rem; transition: all 150ms ease; border: 1px solid #cbd5e1; }
+        .btn-secondary:hover { background-color: #e2e8f0; color: #0f172a; }
+        .btn-secondary:active { transform: scale(0.97); }
+    </style>
+</head>
+<body class="bg-slate-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback } = React;
+
+        // --- MOCK DATA GENERATORS ---
+        const mockSerial = "SN-" + Math.random().toString(36).substr(2, 9).toUpperCase();
+        const mockBios = "v" + (Math.floor(Math.random() * 10) + 1) + "." + Math.floor(Math.random() * 99);
+        const mockDesignCapacity = 55000; 
+        const mockFullCapacity = 55000 - Math.floor(Math.random() * 15000); 
+        const ssdHealthValue = Math.floor(Math.random() * 10) + 90; 
+
+        // --- INLINE WEB WORKER FOR CPU STRESS TEST ---
+        const workerCode = `
+          self.onmessage = function(e) {
+            if (e.data === 'start') {
+              let result = 0;
+              while(true) { result += Math.random() * Math.random(); }
+            }
+          };
+        `;
+
+        function App() {
+          const [activeTab, setActiveTab] = useState('System Info');
+          const [testResults, setTestResults] = useState({});
+
+          const logActivity = (testName, details = '') => {
+            setTestResults(prev => ({
+              ...prev,
+              [testName]: { details, time: new Date().toLocaleTimeString() }
+            }));
+          };
+
+          const tabs = [
+            { name: 'System Info', icon: "fas fa-info-circle" },
+            { name: 'Serial & BIOS', icon: "fas fa-cog" },
+            { name: 'Battery Health', icon: "fas fa-battery-half" },
+            { name: 'Camera Test', icon: "fas fa-camera" },
+            { name: 'Mic Test', icon: "fas fa-microphone" },
+            { name: 'Speaker Test', icon: "fas fa-volume-up" },
+            { name: 'Keyboard Test', icon: "fas fa-keyboard" },
+            { name: 'Mouse Test', icon: "fas fa-mouse-pointer" },
+            { name: 'Touchpad Test', icon: "fas fa-hand-pointer" },
+            { name: 'Display Test', icon: "fas fa-desktop" },
+            { name: 'USB Detection', icon: "fab fa-usb" },
+            { name: 'SSD Health', icon: "fas fa-hdd" },
+            { name: 'CPU Stress Test', icon: "fas fa-microchip" },
+            { name: 'RAM Stress Test', icon: "fas fa-memory" },
+            { name: 'Generate Report', icon: "fas fa-file-alt" },
+          ];
+
+          return (
+            <div className="flex h-screen text-slate-800 font-sans overflow-hidden">
+              {/* Sidebar */}
+              <div className="w-72 bg-slate-900 text-slate-300 flex flex-col shadow-2xl z-10 relative border-r border-slate-800">
+                <div className="p-6 bg-slate-950 flex items-center space-x-3 border-b border-slate-800">
+                  <i className="fas fa-heartbeat text-indigo-500 text-2xl"></i>
+                  <h1 className="text-white font-extrabold text-xl tracking-widest uppercase">Sys-Diag</h1>
+                </div>
+                <div className="flex-1 overflow-y-auto py-4 custom-scrollbar">
+                  <ul className="space-y-1">
+                    {tabs.map((tab) => (
+                      <li key={tab.name} className="px-3">
+                        <button
+                          onClick={() => setActiveTab(tab.name)}
+                          className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+                            activeTab === tab.name 
+                              ? 'bg-indigo-600/15 text-indigo-400 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)] border border-indigo-500/20' 
+                              : 'hover:bg-slate-800/50 hover:text-white border border-transparent'
+                          }`}
+                        >
+                          <i className={`${tab.icon} w-5 text-center text-lg`}></i>
+                          <span>{tab.name}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              {/* Main Content */}
+              <div className="flex-1 overflow-y-auto relative">
+                <div className="max-w-6xl mx-auto p-10">
+                  <header className="mb-8 pb-6 border-b border-slate-200 flex justify-between items-end">
+                    <div>
+                      <h2 className="text-4xl font-black text-slate-800 tracking-tight">{activeTab}</h2>
+                      <p className="text-slate-500 mt-2 text-sm uppercase tracking-wider font-semibold">Hardware Diagnostics & Telemetry</p>
+                    </div>
+                    {testResults[activeTab] && (
+                      <div className="px-4 py-2 rounded-lg text-sm font-bold flex items-center space-x-2 bg-slate-100 text-slate-600 shadow-sm border border-slate-200">
+                        <i className="fas fa-check-circle text-indigo-500"></i>
+                        <span>Data Logged</span>
+                      </div>
+                    )}
+                  </header>
+
+                  <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/40 border border-slate-200 p-8 min-h-[500px]">
+                    {activeTab === 'System Info' && <SystemInfo tabName={activeTab} logActivity={logActivity} />}
+                    {activeTab === 'Serial & BIOS' && <SerialBios tabName={activeTab} logActivity={logActivity} />}
+                    {activeTab === 'Battery Health' && <BatteryHealth tabName={activeTab} logActivity={logActivity} />}
+                    {activeTab === 'Camera Test' && <CameraTest tabName={activeTab} logActivity={logActivity} />}
+                    {activeTab === 'Mic Test' && <MicTest tabName={activeTab} logActivity={logActivity} />}
+                    {activeTab === 'Speaker Test' && <SpeakerTest tabName={activeTab} logActivity={logActivity} />}
+                    {activeTab === 'Keyboard Test' && <KeyboardTest tabName={activeTab} logActivity={logActivity} />}
+                    {activeTab === 'Mouse Test' && <MouseTest tabName={activeTab} logActivity={logActivity} />}
+                    {activeTab === 'Touchpad Test' && <TouchpadTest tabName={activeTab} logActivity={logActivity} />}
+                    {activeTab === 'Display Test' && <DisplayTest tabName={activeTab} logActivity={logActivity} />}
+                    {activeTab === 'USB Detection' && <UsbDetection tabName={activeTab} logActivity={logActivity} />}
+                    {activeTab === 'SSD Health' && <SsdHealth tabName={activeTab} logActivity={logActivity} />}
+                    {activeTab === 'CPU Stress Test' && <CpuStressTest tabName={activeTab} logActivity={logActivity} />}
+                    {activeTab === 'RAM Stress Test' && <RamStressTest tabName={activeTab} logActivity={logActivity} />}
+                    {activeTab === 'Generate Report' && <GenerateReport results={testResults} />}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        function SystemInfo({ tabName, logActivity }) {
+          const [gpuInfo, setGpuInfo] = useState('Detecting...');
+          const [osInfo, setOsInfo] = useState('Unknown');
+
+          useEffect(() => {
+            try {
+              const canvas = document.createElement('canvas');
+              const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+              if (gl) {
+                const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                setGpuInfo(debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : 'Generic WebGL renderer');
+              } else {
+                setGpuInfo('WebGL not supported');
+              }
+            } catch (e) {
+              setGpuInfo('Detection failed');
+            }
+
+            const ua = navigator.userAgent;
+            let os = "Unknown OS";
+            if (ua.indexOf("Win") !== -1) os = "Windows";
+            if (ua.indexOf("Mac") !== -1) os = "MacOS";
+            if (ua.indexOf("X11") !== -1) os = "UNIX";
+            if (ua.indexOf("Linux") !== -1) os = "Linux";
+            setOsInfo(os);
+
+            logActivity(tabName, 'System diagnostics generated automatically');
+          }, [tabName, logActivity]);
+
+          return (
+            <div className="grid grid-cols-2 gap-6">
+              <InfoCard label="Operating System" value={osInfo} />
+              <InfoCard label="GPU Renderer" value={gpuInfo} />
+              <InfoCard label="Logical CPU Cores" value={navigator.hardwareConcurrency || 'API Restricted'} />
+              <InfoCard label="Device Memory (RAM)" value={navigator.deviceMemory ? `>= ${navigator.deviceMemory} GB` : 'API Restricted'} />
+              <InfoCard label="Screen Resolution" value={`${window.screen.width} x ${window.screen.height}`} />
+              <InfoCard label="Color Depth" value={`${window.screen.colorDepth}-bit`} />
+              <InfoCard label="Browser Agent" value={navigator.userAgent} full />
+            </div>
+          );
+        }
+
+        function SerialBios({ tabName, logActivity }) {
+          useEffect(() => {
+            logActivity(tabName, `Read simulated`);
+          }, [tabName, logActivity]);
+
+          return (
+            <div className="space-y-6">
+              <div className="p-6 bg-slate-50 rounded-xl border border-slate-200 shadow-sm">
+                <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-2">Hardware Identification</h3>
+                <p className="text-3xl font-mono text-slate-800 font-bold">{mockSerial}</p>
+                <p className="text-sm text-slate-500 mt-2">Motherboard Serial Number</p>
+              </div>
+              <div className="p-6 bg-slate-50 rounded-xl border border-slate-200 shadow-sm">
+                <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-2">BIOS/UEFI Version</h3>
+                <p className="text-2xl font-mono text-slate-800 font-bold">{mockBios}</p>
+                <p className="text-sm text-slate-500 mt-2">Firmware Revision</p>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-lg flex items-start text-sm">
+                <i className="fas fa-info-circle text-lg mr-3 mt-0.5"></i>
+                <p><strong>Note on Web Security:</strong> Native serial numbers and BIOS versions are deeply sandboxed by modern web browsers for privacy. These values are simulated to demonstrate dashboard reporting formatting.</p>
+              </div>
+            </div>
+          );
+        }
+
+        function BatteryHealth({ tabName, logActivity }) {
+          const [battery, setBattery] = useState(null);
+          const healthPercentage = ((mockFullCapacity / mockDesignCapacity) * 100).toFixed(1);
+
+          useEffect(() => {
+            if ('getBattery' in navigator) {
+              navigator.getBattery().then(batt => {
+                setBattery({
+                  level: Math.round(batt.level * 100),
+                  charging: batt.charging
+                });
+                logActivity(tabName, `Level: ${Math.round(batt.level * 100)}%, Health: ${healthPercentage}%`);
+              });
+            } else {
+              logActivity(tabName, 'Battery API not supported');
+            }
+          }, [tabName, logActivity]);
+
+          return (
+            <div className="space-y-8">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 text-center shadow-sm">
+                  <h3 className="text-slate-600 font-bold uppercase tracking-wider mb-2 text-sm">Est. Battery Health</h3>
+                  <div className="text-5xl font-black text-slate-800 mb-2">{healthPercentage}%</div>
+                  <p className="text-sm text-slate-500 font-medium">Wear Level Simulation</p>
+                </div>
+                
+                <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 text-center shadow-sm">
+                  <h3 className="text-slate-600 font-bold uppercase tracking-wider mb-2 text-sm">Current Charge</h3>
+                  <div className="text-5xl font-black text-indigo-600 mb-2">
+                    {battery ? `${battery.level}%` : 'N/A'}
+                  </div>
+                  <p className="text-sm font-bold text-indigo-800/70">
+                    {battery ? (battery.charging ? 'Plugged In / Charging' : 'On Battery Power') : 'Status Unknown'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <InfoCard label="Design Capacity" value={`${mockDesignCapacity} mWh`} />
+                <InfoCard label="Full Charge Capacity" value={`${mockFullCapacity} mWh`} />
+              </div>
+            </div>
+          );
+        }
+
+        function CameraTest({ tabName, logActivity }) {
+          const videoRef = useRef(null);
+          const [stream, setStream] = useState(null);
+          const [error, setError] = useState('');
+
+          const startCamera = async () => {
+            try {
+              const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+              setStream(mediaStream);
+              if (videoRef.current) {
+                videoRef.current.srcObject = mediaStream;
+              }
+              logActivity(tabName, 'Webcam stream acquired');
+              setError('');
+            } catch (err) {
+              setError(err.message);
+              logActivity(tabName, `Error: ${err.message}`);
+            }
+          };
+
+          const stopCamera = useCallback(() => {
+            if (stream) {
+              stream.getTracks().forEach(track => track.stop());
+              setStream(null);
+            }
+          }, [stream]);
+
+          useEffect(() => {
+            return () => stopCamera(); 
+          }, [stopCamera]);
+
+          return (
+            <div className="flex flex-col items-center space-y-6">
+              <div className="w-full max-w-2xl aspect-video bg-slate-900 rounded-xl overflow-hidden relative shadow-inner border border-slate-800">
+                {stream ? (
+                  <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover transform scale-x-[-1]" />
+                ) : (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-600">
+                    <i className="fas fa-camera text-5xl mb-4 opacity-50"></i>
+                    <p className="font-semibold uppercase tracking-widest">{error ? `Error: ${error}` : 'Stream Inactive'}</p>
+                  </div>
+                )}
+              </div>
+              <div className="space-x-4">
+                {!stream ? (
+                  <button onClick={startCamera} className="btn-primary flex items-center"><i className="fas fa-play mr-2"></i> Initiate Video Feed</button>
+                ) : (
+                  <button onClick={stopCamera} className="btn-secondary flex items-center"><i className="fas fa-square mr-2"></i> Terminate Feed</button>
+                )}
+              </div>
+            </div>
+          );
+        }
+
+        function MicTest({ tabName, logActivity }) {
+          const volumeBarRef = useRef(null);
+          const [isRecording, setIsRecording] = useState(false);
+          const audioContextRef = useRef(null);
+          const streamRef = useRef(null);
+          const requestRef = useRef(null);
+
+          const startMic = async () => {
+            try {
+              const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+              streamRef.current = stream;
+              
+              const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+              audioContextRef.current = audioContext;
+              const analyser = audioContext.createAnalyser();
+              const microphone = audioContext.createMediaStreamSource(stream);
+              
+              analyser.smoothingTimeConstant = 0.8;
+              analyser.fftSize = 256;
+              microphone.connect(analyser);
+              
+              const dataArray = new Uint8Array(analyser.frequencyBinCount);
+              setIsRecording(true);
+              logActivity(tabName, 'Audio stream active');
+
+              const updateVolume = () => {
+                analyser.getByteFrequencyData(dataArray);
+                let sum = 0;
+                for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+                const average = sum / dataArray.length;
+                const percentage = Math.min(100, Math.max(0, (average / 128) * 100));
+                
+                if (volumeBarRef.current) {
+                  volumeBarRef.current.style.width = `${percentage}%`;
+                  if (percentage > 80) volumeBarRef.current.style.backgroundColor = '#6366f1'; 
+                  else if (percentage > 40) volumeBarRef.current.style.backgroundColor = '#818cf8'; 
+                  else volumeBarRef.current.style.backgroundColor = '#a5b4fc'; 
+                }
+                requestRef.current = requestAnimationFrame(updateVolume);
+              };
+              updateVolume();
+            } catch (err) {
+              logActivity(tabName, `Error: ${err.message}`);
+            }
+          };
+
+          const stopMic = useCallback(() => {
+            if (requestRef.current) cancelAnimationFrame(requestRef.current);
+            if (audioContextRef.current) audioContextRef.current.close();
+            if (streamRef.current) streamRef.current.getTracks().forEach(track => track.stop());
+            if (volumeBarRef.current) volumeBarRef.current.style.width = '0%';
+            setIsRecording(false);
+          }, []);
+
+          useEffect(() => {
+            return () => stopMic();
+          }, [stopMic]);
+
+          return (
+            <div className="flex flex-col items-center justify-center space-y-12 h-full py-10">
+              <div className="w-full max-w-xl">
+                <div className="flex justify-between text-sm font-bold text-slate-400 uppercase tracking-widest mb-3">
+                  <span>Quiet</span>
+                  <span>Loud</span>
+                </div>
+                <div className="h-12 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner border border-slate-200">
+                  <div 
+                    ref={volumeBarRef} 
+                    className="h-full bg-indigo-500 transition-all duration-75 ease-out w-0"
+                  ></div>
+                </div>
+              </div>
+              <div className="flex space-x-4">
+                {!isRecording ? (
+                  <button onClick={startMic} className="btn-primary flex items-center">
+                    <i className="fas fa-microphone mr-2"></i> Open Mic Channel
+                  </button>
+                ) : (
+                  <button onClick={stopMic} className="btn-secondary flex items-center">
+                     <i className="fas fa-square mr-2"></i> Close Channel
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        }
+
+        function SpeakerTest({ tabName, logActivity }) {
+          const audioCtxRef = useRef(null);
+
+          const playTone = (panValue) => {
+            if (!audioCtxRef.current) {
+              audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            const ctx = audioCtxRef.current;
+            
+            const oscillator = ctx.createOscillator();
+            const panner = ctx.createStereoPanner();
+            const gainNode = ctx.createGain();
+
+            oscillator.type = 'sine';
+            oscillator.frequency.value = 440; 
+            panner.pan.value = panValue; 
+            
+            gainNode.gain.setValueAtTime(1, ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
+
+            oscillator.connect(panner);
+            panner.connect(gainNode);
+            gainNode.connect(ctx.destination);
+
+            oscillator.start();
+            oscillator.stop(ctx.currentTime + 1.5);
+            
+            logActivity(tabName, panValue === -1 ? 'Left Channel Fired' : panValue === 1 ? 'Right Channel Fired' : 'Stereo Center Fired');
+          };
+
+          return (
+            <div className="flex flex-col items-center justify-center h-full space-y-10 py-10">
+              <p className="text-slate-600 text-center max-w-md font-medium">
+                Trigger synthetic tones to verify physical speaker arrays and audio hardware routing.
+              </p>
+              
+              <div className="flex space-x-6">
+                <button onClick={() => playTone(-1)} className="w-36 h-36 rounded-2xl bg-white hover:bg-slate-50 border-2 border-slate-200 hover:border-indigo-400 flex flex-col items-center justify-center transition-all shadow-sm group">
+                  <i className="fas fa-volume-up text-4xl text-slate-400 group-hover:text-indigo-600 mb-3 transition-colors"></i>
+                  <span className="font-bold text-slate-700 uppercase text-sm tracking-wider">Left CH</span>
+                </button>
+                
+                <button onClick={() => playTone(0)} className="w-36 h-36 rounded-2xl bg-white hover:bg-slate-50 border-2 border-slate-200 hover:border-indigo-400 flex flex-col items-center justify-center transition-all shadow-sm group">
+                  <i className="fas fa-volume-up text-4xl text-slate-400 group-hover:text-indigo-600 mb-3 transition-colors"></i>
+                  <span className="font-bold text-slate-700 uppercase text-sm tracking-wider">Stereo</span>
+                </button>
+
+                <button onClick={() => playTone(1)} className="w-36 h-36 rounded-2xl bg-white hover:bg-slate-50 border-2 border-slate-200 hover:border-indigo-400 flex flex-col items-center justify-center transition-all shadow-sm group">
+                  <i className="fas fa-volume-up text-4xl text-slate-400 group-hover:text-indigo-600 mb-3 transition-colors"></i>
+                  <span className="font-bold text-slate-700 uppercase text-sm tracking-wider">Right CH</span>
+                </button>
+              </div>
+            </div>
+          );
+        }
+
+        function KeyboardTest({ tabName, logActivity }) {
+          const [pressedKeys, setPressedKeys] = useState(new Set());
+          const [lastKey, setLastKey] = useState(null);
+
+          useEffect(() => {
+            const handleKeyDown = (e) => {
+              e.preventDefault(); 
+              setPressedKeys(prev => new Set(prev).add(e.code));
+              setLastKey(e.code);
+              logActivity(tabName, `Unique keystrokes: ${pressedKeys.size + 1}`);
+            };
+            const handleKeyUp = (e) => { e.preventDefault(); };
+
+            window.addEventListener('keydown', handleKeyDown);
+            window.addEventListener('keyup', handleKeyUp);
+            return () => {
+              window.removeEventListener('keydown', handleKeyDown);
+              window.removeEventListener('keyup', handleKeyUp);
+            };
+          }, [pressedKeys, tabName, logActivity]);
+
+          const rows = [
+            ['Escape', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12', 'PrintScreen', 'ScrollLock', 'Pause'],
+            ['Backquote', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'Digit0', 'Minus', 'Equal', 'Backspace', 'Insert', 'Home', 'PageUp', 'NumLock', 'NumpadDivide', 'NumpadMultiply', 'NumpadSubtract'],
+            ['Tab', 'KeyQ', 'KeyW', 'KeyE', 'KeyR', 'KeyT', 'KeyY', 'KeyU', 'KeyI', 'KeyO', 'KeyP', 'BracketLeft', 'BracketRight', 'Backslash', 'Delete', 'End', 'PageDown', 'Numpad7', 'Numpad8', 'Numpad9', 'NumpadAdd'],
+            ['CapsLock', 'KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyG', 'KeyH', 'KeyJ', 'KeyK', 'KeyL', 'Semicolon', 'Quote', 'Enter', 'Numpad4', 'Numpad5', 'Numpad6', 'blank'],
+            ['ShiftLeft', 'KeyZ', 'KeyX', 'KeyC', 'KeyV', 'KeyB', 'KeyN', 'KeyM', 'Comma', 'Period', 'Slash', 'ShiftRight', 'ArrowUp', 'Numpad1', 'Numpad2', 'Numpad3', 'NumpadEnter'],
+            ['ControlLeft', 'MetaLeft', 'AltLeft', 'Space', 'AltRight', 'ContextMenu', 'ControlRight', 'ArrowLeft', 'ArrowDown', 'ArrowRight', 'Numpad0', 'NumpadDecimal', 'blank']
+          ];
+
+          const getKeyLabel = (code) => {
+            if (code === 'blank') return '';
+            const map = {
+              'Escape': 'Esc', 'Minus': '-', 'Equal': '=', 'BracketLeft': '[', 'BracketRight': ']',
+              'Backslash': '\\', 'Semicolon': ';', 'Quote': "'", 'Comma': ',', 'Period': '.', 'Slash': '/',
+              'ControlLeft': 'Ctrl', 'ControlRight': 'Ctrl', 'AltLeft': 'Alt', 'AltRight': 'Alt',
+              'ShiftLeft': 'Shift', 'ShiftRight': 'Shift', 'Space': 'Space', 'Backquote': '`',
+              'MetaLeft': 'Win', 'MetaRight': 'Win', 'ContextMenu': 'Menu',
+              'ArrowUp': '↑', 'ArrowDown': '↓', 'ArrowLeft': '←', 'ArrowRight': '→',
+              'PrintScreen': 'PrtScn', 'ScrollLock': 'ScrLk', 'Pause': 'Pause',
+              'Insert': 'Ins', 'Delete': 'Del', 'Home': 'Home', 'End': 'End', 'PageUp': 'PgUp', 'PageDown': 'PgDn',
+              'NumLock': 'NumLk', 'NumpadDivide': '/', 'NumpadMultiply': '*', 'NumpadSubtract': '-',
+              'NumpadAdd': '+', 'NumpadEnter': 'Enter', 'NumpadDecimal': '.'
+            };
+            if (code.startsWith('Key')) return code.slice(3);
+            if (code.startsWith('Digit')) return code.slice(5);
+            if (code.startsWith('Numpad')) return code.slice(6);
+            return map[code] || code;
+          };
+
+          return (
+            <div className="flex flex-col items-center">
+              <div className="mb-6 h-12 flex items-center justify-center w-full bg-slate-50 border border-slate-200 rounded-lg text-lg font-mono font-bold text-slate-700 shadow-sm">
+                {lastKey ? `Hardware Code Intercepted: ${lastKey}` : 'Awaiting Keyboard Input...'}
+              </div>
+              
+              <div className="bg-slate-100 p-5 rounded-xl border border-slate-300 w-full shadow-inner overflow-x-auto">
+                <div className="min-w-[1000px]">
+                  {rows.map((row, i) => (
+                    <div key={i} className={`flex mb-1 ${i === 0 ? 'mb-4' : ''}`}>
+                      {row.map((code, j) => {
+                        if (code === 'blank') return <div key={j} className="w-12 mx-0.5"></div>;
+                        const isPressed = pressedKeys.has(code);
+                        let widthClass = "w-10";
+                        if (code === 'Space') widthClass = "w-64";
+                        else if (['ShiftLeft', 'Enter', 'CapsLock', 'Backspace', 'Tab', 'ShiftRight'].includes(code)) widthClass = "w-20";
+                        else if (['ControlLeft', 'ControlRight', 'AltLeft', 'AltRight'].includes(code)) widthClass = "w-14";
+                        else if (['Numpad0'].includes(code)) widthClass = "w-20";
+                        
+                        let marginClass = "mx-0.5";
+                        if (['F4', 'F8', 'F12', 'Pause', 'PageUp', 'PageDown', 'ShiftRight', 'ControlRight', 'ArrowRight'].includes(code)) marginClass = "mr-4 ml-0.5";
+
+                        return (
+                          <div 
+                            key={code + j} 
+                            className={`
+                              h-10 flex items-center justify-center rounded border font-mono text-xs font-semibold transition-colors select-none
+                              ${widthClass} ${marginClass}
+                              ${isPressed 
+                                ? 'bg-indigo-600 text-white border-indigo-700 shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)]' 
+                                : 'bg-white text-slate-700 border-slate-300 shadow-sm'}
+                            `}
+                          >
+                            {getKeyLabel(code)}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <button 
+                onClick={() => setPressedKeys(new Set())} 
+                className="mt-6 text-sm text-indigo-600 hover:text-indigo-800 font-bold uppercase tracking-widest"
+              >
+                Clear Key Matrix
+              </button>
+            </div>
+          );
+        }
+
+        function MouseTest({ tabName, logActivity }) {
+          const [data, setData] = useState({ x: 0, y: 0, clicks: { left: 0, middle: 0, right: 0 }, scroll: 0 });
+
+          const handleMouseMove = (e) => setData(p => ({ ...p, x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY }));
+          const handleMouseDown = (e) => {
+            e.preventDefault();
+            setData(p => {
+              const newClicks = { ...p.clicks };
+              if (e.button === 0) newClicks.left++;
+              if (e.button === 1) newClicks.middle++;
+              if (e.button === 2) newClicks.right++;
+              return { ...p, clicks: newClicks };
+            });
+            logActivity(tabName, 'Physical mouse click recorded');
+          };
+
+          return (
+            <div className="grid grid-cols-3 gap-6 h-[400px]">
+              <div 
+                className="col-span-2 bg-slate-900 rounded-xl relative overflow-hidden cursor-crosshair shadow-inner border border-slate-800"
+                onMouseMove={handleMouseMove}
+                onMouseDown={handleMouseDown}
+                onContextMenu={e => e.preventDefault()}
+              >
+                <div className="absolute inset-0 flex items-center justify-center text-slate-700 pointer-events-none select-none text-2xl font-black tracking-widest">
+                  TRACKING SURFACE
+                </div>
+                <div className="absolute top-0 bottom-0 border-l border-indigo-500/50 pointer-events-none" style={{ left: data.x }}></div>
+                <div className="absolute left-0 right-0 border-t border-indigo-500/50 pointer-events-none" style={{ top: data.y }}></div>
+                <div 
+                  className="absolute w-2 h-2 bg-indigo-400 rounded-full transform -translate-x-1 -translate-y-1 pointer-events-none shadow-[0_0_8px_rgba(99,102,241,0.8)]"
+                  style={{ left: data.x, top: data.y }}
+                ></div>
+              </div>
+              
+              <div className="bg-slate-50 p-6 rounded-xl flex flex-col space-y-4 border border-slate-200">
+                <h3 className="font-black text-slate-800 border-b border-slate-200 pb-2 uppercase tracking-widest text-sm">Telemetry</h3>
+                <div>
+                  <span className="text-xs font-bold text-slate-400 uppercase">Axis Coordinates</span>
+                  <p className="font-mono text-lg font-bold text-indigo-700">X: {data.x}, Y: {data.y}</p>
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-slate-400 uppercase">Switch Actuations</span>
+                  <ul className="font-mono text-sm space-y-2 mt-2 font-semibold text-slate-700">
+                    <li className="flex justify-between border-b border-slate-100 pb-1"><span>Left Button</span> <span>{data.clicks.left}</span></li>
+                    <li className="flex justify-between border-b border-slate-100 pb-1"><span>Middle Button</span> <span>{data.clicks.middle}</span></li>
+                    <li className="flex justify-between border-b border-slate-100 pb-1"><span>Right Button</span> <span>{data.clicks.right}</span></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        function TouchpadTest({ tabName, logActivity }) {
+          const [events, setEvents] = useState({ scrolls: 0, multiTouch: false });
+
+          const handleWheel = (e) => {
+            setEvents(p => ({ ...p, scrolls: p.scrolls + 1 }));
+            logActivity(tabName, 'Two-finger scroll registered');
+          };
+
+          const handleTouch = (e) => {
+            if (e.touches.length >= 2) {
+              setEvents(p => ({ ...p, multiTouch: true }));
+              logActivity(tabName, 'Multi-touch gesture registered');
+            }
+          };
+
+          return (
+            <div className="flex flex-col items-center justify-center h-full space-y-6">
+              <div className="text-center max-w-md mb-4">
+                <i className="fas fa-hand-pointer text-5xl mx-auto mb-4 text-indigo-500"></i>
+                <h3 className="text-xl font-bold text-slate-800 mb-2">Trackpad Gestures</h3>
+                <p className="text-slate-500 text-sm font-medium">Use your trackpad to scroll vertically/horizontally, or use multi-finger gestures inside the zone below.</p>
+              </div>
+              
+              <div 
+                className="w-full max-w-2xl h-56 bg-slate-800 hover:bg-slate-700 transition-colors rounded-2xl flex items-center justify-center select-none shadow-inner touch-none cursor-crosshair border border-slate-700"
+                onWheel={handleWheel}
+                onTouchMove={handleTouch}
+                onTouchStart={handleTouch}
+              >
+                <span className="font-bold tracking-widest text-lg text-slate-500 pointer-events-none">INTERACTION ZONE</span>
+              </div>
+              
+              <div className="flex space-x-12 pt-4">
+                <div className="flex flex-col items-center">
+                   <span className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">Scroll Events</span>
+                   <span className="text-4xl font-mono font-black text-indigo-600">{events.scrolls}</span>
+                </div>
+                <div className="flex flex-col items-center">
+                   <span className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">Multi-Touch</span>
+                   <span className={`text-4xl font-mono font-black ${events.multiTouch ? 'text-indigo-600' : 'text-slate-300'}`}>
+                     {events.multiTouch ? 'YES' : 'NO'}
+                   </span>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        function DisplayTest({ tabName, logActivity }) {
+          const [isFullscreen, setIsFullscreen] = useState(false);
+          const [colorIndex, setColorIndex] = useState(0);
+          const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFFFFF', '#000000'];
+          const testDivRef = useRef(null);
+
+          const startTest = async () => {
+            try {
+              if (testDivRef.current.requestFullscreen) {
+                await testDivRef.current.requestFullscreen();
+                setIsFullscreen(true);
+                logActivity(tabName, 'Fullscreen palette test executed');
+              }
+            } catch (err) {
+              alert("Fullscreen API denied: " + err.message);
+            }
+          };
+
+          const handleFullscreenChange = () => {
+            if (!document.fullscreenElement) {
+              setIsFullscreen(false);
+              setColorIndex(0);
+            }
+          };
+
+          useEffect(() => {
+            document.addEventListener('fullscreenchange', handleFullscreenChange);
+            return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+          }, []);
+
+          const handleClick = () => {
+            if (isFullscreen) setColorIndex((prev) => (prev + 1) % colors.length);
+          };
+
+          return (
+            <div className="flex flex-col items-center justify-center h-full space-y-6">
+              <div className="max-w-md text-center">
+                <i className="fas fa-desktop text-5xl mx-auto mb-4 text-indigo-500"></i>
+                <h3 className="text-xl font-bold text-slate-800 mb-2">Matrix Dead Pixel Check</h3>
+                <p className="mb-6 text-slate-500 text-sm font-medium">
+                  Forces full-screen solid RGB arrays (Red, Green, Blue, White, Black) to assist in visually identifying stuck or dead pixels on the physical panel.
+                </p>
+                <button onClick={startTest} className="btn-primary">Launch Display Array</button>
+              </div>
+
+              <div 
+                ref={testDivRef} 
+                onClick={handleClick}
+                className="fixed inset-0 z-50 flex items-center justify-center cursor-pointer"
+                style={{ display: isFullscreen ? 'flex' : 'none', backgroundColor: colors[colorIndex] }}
+              >
+                {colorIndex === 0 && (
+                  <div className="bg-black/70 text-white font-mono font-bold tracking-widest p-4 rounded-lg pointer-events-none select-none">
+                    CLICK TO CYCLE // ESC TO ABORT
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        }
+
+        function UsbDetection({ tabName, logActivity }) {
+          const [supported, setSupported] = useState(false);
+          const [device, setDevice] = useState(null);
+
+          useEffect(() => {
+            if ('usb' in navigator) {
+              setSupported(true);
+              logActivity(tabName, 'WebUSB API verified');
+            }
+          }, [tabName, logActivity]);
+
+          const scanUsb = async () => {
+            try {
+              const selectedDevice = await navigator.usb.requestDevice({ filters: [] });
+              setDevice({
+                name: selectedDevice.productName || 'Unknown Device',
+                vendor: selectedDevice.manufacturerName || 'Unknown Vendor',
+                version: `${selectedDevice.usbVersionMajor}.${selectedDevice.usbVersionMinor}`
+              });
+              logActivity(tabName, `Read hardware root hub: ${selectedDevice.productName}`);
+            } catch (err) {
+              console.log("USB request cancelled or failed", err);
+            }
+          };
+
+          return (
+            <div className="flex flex-col items-center justify-center h-full space-y-6 py-10">
+              {supported ? (
+                <>
+                  <div className="text-center max-w-md">
+                    <i className="fab fa-usb text-5xl mx-auto mb-4 text-indigo-500"></i>
+                    <h3 className="text-xl font-bold text-slate-800 mb-2">Universal Serial Bus Array</h3>
+                    <p className="text-slate-500 text-sm font-medium mb-6">
+                      Interfaces directly with the OS hardware abstraction layer to verify physical USB port connectivity and controller logic.
+                    </p>
+                    <button onClick={scanUsb} className="btn-primary">Interrogate USB Bus</button>
+                  </div>
+
+                  {device && (
+                    <div className="bg-slate-50 border border-slate-200 p-6 rounded-xl w-full max-w-md mt-6 shadow-sm">
+                      <h4 className="font-black text-slate-700 uppercase tracking-widest mb-4 border-b border-slate-200 pb-2 text-sm">Controller Response</h4>
+                      <ul className="space-y-3 text-sm text-slate-600 font-mono">
+                        <li><span className="font-bold text-slate-800 mr-2">PRODUCT:</span> {device.name}</li>
+                        <li><span className="font-bold text-slate-800 mr-2">VENDOR:</span> {device.vendor}</li>
+                        <li><span className="font-bold text-slate-800 mr-2">PROTOCOL:</span> USB {device.version}</li>
+                      </ul>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center text-slate-500 bg-slate-50 p-6 rounded-xl border border-slate-200">
+                  <i className="fas fa-heartbeat text-5xl mx-auto mb-4 opacity-50"></i>
+                  <h3 className="text-lg font-bold mb-2">WebUSB Unavailable</h3>
+                  <p className="text-sm">This browser environment strictly isolates the USB bus layer.</p>
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        function SsdHealth({ tabName, logActivity }) {
+          useEffect(() => {
+            logActivity(tabName, `SMART read simulated`);
+          }, [tabName, logActivity]);
+
+          const circumference = 2 * Math.PI * 60; 
+          const strokeDashoffset = circumference - (ssdHealthValue / 100) * circumference;
+
+          return (
+            <div className="flex flex-col items-center justify-center h-full space-y-8 py-4">
+              <div className="relative flex items-center justify-center">
+                <svg className="transform -rotate-90 w-48 h-48 drop-shadow-md">
+                  <circle cx="96" cy="96" r="60" stroke="currentColor" strokeWidth="10" fill="transparent" className="text-slate-100" />
+                  <circle 
+                    cx="96" cy="96" r="60" stroke="currentColor" strokeWidth="10" fill="transparent" strokeLinecap="round"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={strokeDashoffset}
+                    className="text-indigo-500 transition-all duration-1000 ease-out"
+                  />
+                </svg>
+                <div className="absolute flex flex-col items-center">
+                  <span className="text-4xl font-black text-slate-800">{ssdHealthValue}%</span>
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Life Remaining</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 w-full max-w-lg">
+                <InfoCard label="Drive Interface" value="NVMe PCIe 4.0" />
+                <InfoCard label="NAND Temperature" value={`${Math.floor(Math.random() * 15) + 30}°C`} />
+                <InfoCard label="Host Reads (Lifetime)" value={`${Math.floor(Math.random() * 5000) + 1000} GB`} />
+                <InfoCard label="Host Writes (Lifetime)" value={`${Math.floor(Math.random() * 4000) + 800} GB`} />
+              </div>
+              
+              <p className="text-xs text-slate-400 mt-4 flex items-center font-medium">
+                <i className="fas fa-info-circle mr-1"></i>
+                Raw SMART blocks cannot be accessed via web protocols. Values simulated for telemetry format display.
+              </p>
+            </div>
+          );
+        }
+
+        function CpuStressTest({ tabName, logActivity }) {
+          const [workers, setWorkers] = useState([]);
+          const [testing, setTesting] = useState(false);
+          const [timeRemaining, setTimeRemaining] = useState(0);
+          const logicalCores = navigator.hardwareConcurrency || 4;
+
+          const startStressTest = () => {
+            const newWorkers = [];
+            const blob = new Blob([workerCode], { type: 'application/javascript' });
+            const workerUrl = URL.createObjectURL(blob);
+
+            for (let i = 0; i < logicalCores; i++) {
+              const worker = new Worker(workerUrl);
+              worker.postMessage('start');
+              newWorkers.push(worker);
+            }
+            
+            setWorkers(newWorkers);
+            setTesting(true);
+            setTimeRemaining(10); 
+            logActivity(tabName, `Threaded burn-in initiated on ${logicalCores} logic cores`);
+          };
+
+          const stopStressTest = useCallback(() => {
+            workers.forEach(worker => worker.terminate());
+            setWorkers([]);
+            setTesting(false);
+            setTimeRemaining(0);
+            logActivity(tabName, 'Burn-in cycle terminated');
+          }, [workers, tabName, logActivity]);
+
+          useEffect(() => {
+            let timer;
+            if (testing && timeRemaining > 0) {
+              timer = setTimeout(() => setTimeRemaining(t => t - 1), 1000);
+            } else if (testing && timeRemaining === 0) {
+              stopStressTest();
+            }
+            return () => clearTimeout(timer);
+          }, [testing, timeRemaining, stopStressTest]);
+
+          useEffect(() => {
+            return () => workers.forEach(w => w.terminate());
+          }, [workers]);
+
+          return (
+            <div className="flex flex-col items-center justify-center h-full space-y-8 py-10">
+              <div className="text-center">
+                <i className={`fas fa-microchip text-6xl mx-auto mb-4 ${testing ? 'text-indigo-600 animate-pulse' : 'text-slate-400'}`}></i>
+                <h3 className="text-2xl font-bold text-slate-800 mb-2">Multithreaded Burn-In</h3>
+                <p className="text-slate-500 max-w-md mx-auto text-sm font-medium">
+                  Deploys isolated Web Workers across all <strong>{logicalCores}</strong> available hardware threads to enforce 100% logic gate utilization, verifying thermal bounds and processor stability.
+                </p>
+              </div>
+
+              {testing ? (
+                <div className="text-center w-full max-w-md bg-slate-50 p-8 rounded-xl border border-slate-200 shadow-inner">
+                  <div className="text-4xl font-mono font-black text-indigo-600 mb-4">{timeRemaining}s</div>
+                  <div className="h-3 bg-slate-200 rounded-full overflow-hidden mb-6">
+                     <div 
+                       className="h-full bg-indigo-500 transition-all duration-1000 ease-linear" 
+                       style={{ width: `${((10 - timeRemaining) / 10) * 100}%` }}
+                     ></div>
+                  </div>
+                  <p className="text-xs uppercase tracking-widest font-bold text-slate-400 mb-6">Hardware Under Maximum Load</p>
+                  <button onClick={stopStressTest} className="btn-secondary w-full">Halt Execution</button>
+                </div>
+              ) : (
+                <button onClick={startStressTest} className="btn-primary flex items-center text-lg px-8 py-4">
+                  <i className="fas fa-fire mr-3"></i> Initiate Thread Saturation
+                </button>
+              )}
+            </div>
+          );
+        }
+
+        function RamStressTest({ tabName, logActivity }) {
+          const [allocatedSize, setAllocatedSize] = useState(0); 
+          const [memoryChunks, setMemoryChunks] = useState([]);
+          
+          const CHUNK_SIZE_MB = 50; 
+          const MAX_MB = navigator.deviceMemory ? navigator.deviceMemory * 1024 * 0.4 : 1000; 
+
+          const allocateMemory = () => {
+            if (allocatedSize >= MAX_MB) return;
+            try {
+              const chunk = new Array(CHUNK_SIZE_MB * 10000).fill('010101010101010101010101010101010101');
+              setMemoryChunks(prev => [...prev, chunk]);
+              setAllocatedSize(prev => prev + CHUNK_SIZE_MB);
+              logActivity(tabName, `Heap committed: ${allocatedSize + CHUNK_SIZE_MB} MB`);
+            } catch (e) {
+              logActivity(tabName, 'OOM Exception / Hard Limit Reached');
+            }
+          };
+
+          const freeMemory = useCallback(() => {
+            setMemoryChunks([]);
+            setAllocatedSize(0);
+            logActivity(tabName, 'Heap allocation released');
+          }, [tabName, logActivity]);
+
+          useEffect(() => {
+            return () => setMemoryChunks([]);
+          }, []);
+
+          const percentage = Math.min(100, (allocatedSize / MAX_MB) * 100);
+
+          return (
+            <div className="flex flex-col items-center justify-center h-full space-y-8 py-10">
+              <div className="text-center max-w-md">
+                <i className="fas fa-memory text-6xl mx-auto mb-4 text-indigo-500"></i>
+                <h3 className="text-2xl font-bold text-slate-800 mb-2">Memory Heap Saturation</h3>
+                <p className="text-slate-500 text-sm font-medium">
+                  Dynamically allocates large array structures directly into physical memory to test cell integrity. 
+                  <br/><span className="text-xs text-indigo-600 font-bold mt-2 block">System restricted to max ~{MAX_MB}MB to prevent OS kernel panic.</span>
+                </p>
+              </div>
+
+              <div className="w-full max-w-lg bg-slate-50 p-8 rounded-xl border border-slate-200 shadow-sm">
+                <div className="flex justify-between mb-3 items-end">
+                  <span className="font-bold text-slate-400 uppercase tracking-widest text-xs">Allocated Blocks</span>
+                  <span className="font-mono font-black text-xl text-indigo-700">{allocatedSize} MB <span className="text-sm font-normal text-slate-400">/ {MAX_MB} MB</span></span>
+                </div>
+                <div className="h-4 bg-slate-200 rounded-full overflow-hidden shadow-inner mb-8">
+                  <div 
+                    className="h-full bg-indigo-500 transition-all duration-300 ease-out" 
+                    style={{ width: `${percentage}%` }}
+                  ></div>
+                </div>
+                
+                <div className="flex space-x-4">
+                  <button 
+                    onClick={allocateMemory} 
+                    disabled={allocatedSize >= MAX_MB}
+                    className={`flex-1 py-3.5 rounded-lg font-bold shadow-md transition-all ${allocatedSize >= MAX_MB ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-indigo-600 hover:bg-indigo-700 text-white active:scale-95'}`}
+                  >
+                    Force +{CHUNK_SIZE_MB}MB
+                  </button>
+                  <button 
+                    onClick={freeMemory} 
+                    disabled={allocatedSize === 0}
+                    className={`flex-1 py-3.5 rounded-lg font-bold transition-all border-2 ${allocatedSize === 0 ? 'border-slate-100 text-slate-300 cursor-not-allowed bg-transparent' : 'border-slate-800 text-slate-800 hover:bg-slate-800 hover:text-white active:scale-95'}`}
+                  >
+                    Purge Memory
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        function GenerateReport({ results }) {
+          const handlePrint = () => window.print();
+
+          const totalTests = 14; 
+          const completedTests = Object.keys(results).length;
+
+          return (
+            <div className="space-y-6">
+              <div className="print-section bg-white">
+                <div className="flex justify-between items-end border-b-4 border-slate-900 pb-6 mb-8">
+                  <div>
+                    <h2 className="text-4xl font-black text-slate-900 tracking-tighter uppercase">Hardware Telemetry Log</h2>
+                    <p className="text-slate-500 mt-2 font-mono">Timestamp: {new Date().toLocaleString()}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-mono font-black text-2xl text-slate-800">{mockSerial}</p>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Motherboard UUID</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-6 mb-10">
+                  <div className="bg-slate-50 p-6 rounded-xl border border-slate-200">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Modules Executed</p>
+                    <p className="text-3xl font-black text-slate-800">{completedTests} <span className="text-lg text-slate-400">/ {totalTests}</span></p>
+                  </div>
+                  <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 col-span-2">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Host Environment</p>
+                    <p className="text-xl font-bold text-slate-800 truncate">{navigator.userAgent}</p>
+                  </div>
+                </div>
+
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-900 text-slate-100 uppercase text-xs tracking-widest">
+                      <th className="py-4 px-6 font-bold rounded-tl-lg">Diagnostic Module</th>
+                      <th className="py-4 px-6 font-bold">Latest Output / Telemetry Data</th>
+                      <th className="py-4 px-6 font-bold text-right rounded-tr-lg">Timestamp</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      'System Info', 'Serial & BIOS', 'Battery Health', 'Camera Test', 
+                      'Mic Test', 'Speaker Test', 'Keyboard Test', 'Mouse Test', 'Touchpad Test',
+                      'Display Test', 'USB Detection', 'SSD Health', 'CPU Stress Test', 'RAM Stress Test'
+                    ].map(test => {
+                      const res = results[test] || { details: 'No telemetry recorded', time: '--:--:--' };
+                      const isUntested = !results[test];
+                      return (
+                        <tr key={test} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                          <td className="py-4 px-6 font-bold text-slate-800">{test}</td>
+                          <td className={`py-4 px-6 text-sm font-medium ${isUntested ? 'text-slate-400 italic' : 'text-slate-600'}`}>{res.details}</td>
+                          <td className="py-4 px-6 text-sm font-mono text-slate-400 text-right">{res.time}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex justify-center mt-10 no-print">
+                <button 
+                  onClick={handlePrint}
+                  className="bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 px-10 rounded-xl shadow-xl shadow-slate-900/20 flex items-center transition-all active:scale-95 uppercase tracking-widest text-sm"
+                >
+                  <i className="fas fa-file-alt mr-3 text-lg"></i> Export Telemetry Report
+                </button>
+              </div>
+            </div>
+          );
+        }
+
+        function InfoCard({ label, value, full = false }) {
+          return (
+            <div className={`p-5 bg-slate-50 rounded-xl border border-slate-200 shadow-sm ${full ? 'col-span-2' : ''}`}>
+              <span className="text-xs text-slate-400 uppercase font-bold tracking-widest block mb-2">{label}</span>
+              <span className="text-lg font-bold text-slate-800 break-words">{value}</span>
+            </div>
+          );
+        }
+
+        // Render the App
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
