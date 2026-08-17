@@ -1,162 +1,841 @@
-document.addEventListener("DOMContentLoaded", () => {
-    // Tab Switching Logic
-    const tabs = document.querySelectorAll('.tab-btn');
-    const contents = document.querySelectorAll('.tab-content');
+const AGENT = "http://127.0.0.1:47821";
 
-    tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            tabs.forEach(t => t.classList.remove('active'));
-            contents.forEach(c => c.classList.remove('active'));
-            tab.classList.add('active');
-            document.getElementById(tab.dataset.target).classList.add('active');
-        });
+let cameraStream = null;
+let micStream = null;
+let mediaRecorder = null;
+let recordedChunks = [];
+
+
+// --------------------------------------------------
+// NAVIGATION
+// --------------------------------------------------
+
+function showPage(page, element = null) {
+
+    document.querySelectorAll(".page").forEach(p => {
+        p.classList.remove("active-page");
     });
 
-    // 1. System Info (Uses standard navigator and window objects)
-    document.getElementById('os-info').textContent = navigator.userAgent;
-    document.getElementById('ram-info').textContent = navigator.deviceMemory ? `>= ${navigator.deviceMemory} GB` : 'Not supported';
-    document.getElementById('cpu-info').textContent = navigator.hardwareConcurrency || 'Unknown';
-    document.getElementById('screen-info').textContent = `${window.screen.width} x ${window.screen.height}`;
+    const target = document.getElementById(page);
 
-    // 2. Battery Info (Uses Battery Status API)
-    if ('getBattery' in navigator) {
-        navigator.getBattery().then(battery => {
-            const updateBattery = () => {
-                document.getElementById('batt-level').textContent = `${(battery.level * 100).toFixed(0)}%`;
-                document.getElementById('batt-charging').textContent = battery.charging ? 'Yes (Plugged In)' : 'No (Discharging)';
-            };
-            updateBattery();
-            battery.addEventListener('levelchange', updateBattery);
-            battery.addEventListener('chargingchange', updateBattery);
-        });
-    } else {
-        document.getElementById('batt-level').textContent = 'API Not Supported';
+    if (target) {
+        target.classList.add("active-page");
     }
 
-    // 3. Camera Test
-    const video = document.getElementById('cam-video');
-    const canvas = document.getElementById('cam-canvas');
-    let mediaStream = null;
-
-    document.getElementById('start-cam').addEventListener('click', async () => {
-        try {
-            mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
-            video.srcObject = mediaStream;
-            document.getElementById('snap-cam').disabled = false;
-        } catch (err) {
-            alert("Camera access denied or no camera found.");
-        }
+    document.querySelectorAll(".nav-item").forEach(item => {
+        item.classList.remove("active");
     });
 
-    document.getElementById('snap-cam').addEventListener('click', () => {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0);
-    });
+    if (element) {
+        element.classList.add("active");
+    }
 
-    // 4. Mic Test
-    let mediaRecorder;
-    let audioChunks = [];
-    const audioPlayback = document.getElementById('mic-playback');
-
-    document.getElementById('start-mic').addEventListener('click', async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream);
-            mediaRecorder.start();
-            
-            document.getElementById('start-mic').disabled = true;
-            document.getElementById('stop-mic').disabled = false;
-
-            mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-            mediaRecorder.onstop = () => {
-                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                audioPlayback.src = URL.createObjectURL(audioBlob);
-                audioChunks = [];
-            };
-        } catch (err) {
-            alert("Microphone access denied.");
-        }
-    });
-
-    document.getElementById('stop-mic').addEventListener('click', () => {
-        mediaRecorder.stop();
-        document.getElementById('start-mic').disabled = false;
-        document.getElementById('stop-mic').disabled = true;
-    });
-
-    // 5. Sound Test (Web Audio API)
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-    const playTone = (panValue, frequency = 440) => {
-        const oscillator = audioCtx.createOscillator();
-        const panner = audioCtx.createStereoPanner();
-        
-        oscillator.type = 'sine';
-        oscillator.frequency.value = frequency;
-        panner.pan.value = panValue; // -1 left, 0 both, 1 right
-
-        oscillator.connect(panner);
-        panner.connect(audioCtx.destination);
-        oscillator.start();
-        oscillator.stop(audioCtx.currentTime + 2); // Play for 2 seconds
+    const titles = {
+        overview: "Machine Overview",
+        system: "System Information",
+        battery: "Battery Diagnostic",
+        camera: "Camera Test",
+        microphone: "Microphone Test",
+        sound: "Sound Test",
+        display: "Display Test",
+        speed: "Speed Test",
+        ports: "Port Detection"
     };
 
-    document.getElementById('test-left').addEventListener('click', () => playTone(-1));
-    document.getElementById('test-right').addEventListener('click', () => playTone(1));
-    document.getElementById('test-both').addEventListener('click', () => playTone(0));
-    document.getElementById('test-bass').addEventListener('click', () => playTone(0, 60)); // 60Hz deep bass
+    document.getElementById("pageTitle").textContent =
+        titles[page] || "Laptop Analyzer";
+}
 
-    // 6. Display Test
-    const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFFFFF', '#000000'];
-    let colorIndex = 0;
 
-    document.getElementById('start-display').addEventListener('click', () => {
-        const div = document.createElement('div');
-        div.className = 'fullscreen-test';
-        div.style.backgroundColor = colors[colorIndex];
-        document.body.appendChild(div);
-        
-        div.requestFullscreen().catch(err => alert(`Error: ${err.message}`));
+// --------------------------------------------------
+// API
+// --------------------------------------------------
 
-        div.addEventListener('click', () => {
-            colorIndex++;
-            if (colorIndex >= colors.length) {
-                document.exitFullscreen();
-                div.remove();
-                colorIndex = 0;
-            } else {
-                div.style.backgroundColor = colors[colorIndex];
-            }
-        });
+async function api(endpoint) {
 
-        document.addEventListener('fullscreenchange', () => {
-            if (!document.fullscreenElement) div.remove();
-        });
-    });
+    const response = await fetch(
+        `${AGENT}${endpoint}`,
+        {
+            cache: "no-store"
+        }
+    );
 
-    // 7. Network Speed Estimate
-    if (navigator.connection) {
-        document.getElementById('net-downlink').textContent = `${navigator.connection.downlink} Mbps (Estimate)`;
-        document.getElementById('net-type').textContent = navigator.connection.effectiveType;
-    } else {
-        document.getElementById('net-downlink').textContent = 'API Not Supported';
+    if (!response.ok) {
+        throw new Error(
+            `Agent error: ${response.status}`
+        );
     }
 
-    // 8. Port Detection (WebUSB API)
-    document.getElementById('scan-usb').addEventListener('click', async () => {
-        if ('usb' in navigator) {
-            try {
-                // Requests permission to view a device
-                const device = await navigator.usb.requestDevice({ filters: [] });
-                const li = document.createElement('li');
-                li.textContent = `Found: ${device.productName} by ${device.manufacturerName}`;
-                document.getElementById('usb-list').appendChild(li);
-            } catch (err) {
-                console.log("No device selected or permission denied.");
-            }
-        } else {
-            alert("WebUSB API not supported in this browser.");
+    return response.json();
+}
+
+
+// --------------------------------------------------
+// LOAD EVERYTHING
+// --------------------------------------------------
+
+async function loadAllData() {
+
+    updateAgentStatus(false);
+
+    try {
+
+        const system = await api("/api/system");
+
+        updateAgentStatus(true);
+
+        renderSystem(system);
+
+        try {
+            const battery = await api("/api/battery");
+            renderBattery(battery);
+        } catch (error) {
+            console.warn("Battery:", error);
         }
-    });
-});
+
+        try {
+            const ports = await api("/api/ports");
+            renderPorts(ports);
+        } catch (error) {
+            console.warn("Ports:", error);
+        }
+
+        runSpeedTest();
+
+        document.getElementById("lastUpdated").textContent =
+            "Updated " +
+            new Date().toLocaleTimeString();
+
+    } catch (error) {
+
+        console.error(error);
+
+        updateAgentStatus(false);
+
+        document.getElementById("machineName").textContent =
+            "Hardware agent is not running";
+
+        document.getElementById("overviewModel").textContent =
+            "Agent Offline";
+    }
+}
+
+
+function updateAgentStatus(online) {
+
+    const dot = document.getElementById("agentDot");
+    const status = document.getElementById("agentStatus");
+
+    if (online) {
+
+        dot.classList.remove("red");
+
+        status.textContent =
+            "Hardware agent online";
+
+    } else {
+
+        dot.classList.add("red");
+
+        status.textContent =
+            "Agent offline";
+    }
+}
+
+
+// --------------------------------------------------
+// SYSTEM
+// --------------------------------------------------
+
+function renderSystem(data) {
+
+    document.getElementById("manufacturer").textContent =
+        data.manufacturer || "--";
+
+    document.getElementById("model").textContent =
+        data.model || "--";
+
+    document.getElementById("serial").textContent =
+        data.serial || "--";
+
+    document.getElementById("motherboard").textContent =
+        data.motherboard || "--";
+
+    document.getElementById("systemCPU").textContent =
+        data.cpu?.name || "--";
+
+    document.getElementById("systemRAM").textContent =
+        data.ram?.totalGB
+            ? `${data.ram.totalGB} GB`
+            : "--";
+
+    document.getElementById("systemRAMSpeed").textContent =
+        data.ram?.speedMHz
+            ? `${data.ram.speedMHz} MHz`
+            : "--";
+
+    document.getElementById("os").textContent =
+        data.os?.name || "--";
+
+    document.getElementById("osBuild").textContent =
+        data.os?.build || "--";
+
+    document.getElementById("resolution").textContent =
+        `${screen.width} × ${screen.height}`;
+
+    document.getElementById("systemTemp").textContent =
+        data.cpu?.temperatureC
+            ? `${data.cpu.temperatureC} °C`
+            : "Unavailable";
+
+
+    document.getElementById("machineName").textContent =
+        `${data.manufacturer || ""} ${data.model || ""}`;
+
+    document.getElementById("overviewModel").textContent =
+        data.model || "Unknown Machine";
+
+    document.getElementById("overviewOS").textContent =
+        `${data.os?.name || "Unknown OS"} ${data.os?.version || ""}`;
+
+
+    document.getElementById("cpuName").textContent =
+        data.cpu?.name || "--";
+
+    document.getElementById("cpuTemp").textContent =
+        data.cpu?.temperatureC
+            ? `Temperature: ${data.cpu.temperatureC} °C`
+            : "Temperature: unavailable";
+
+
+    document.getElementById("ramSize").textContent =
+        data.ram?.totalGB
+            ? `${data.ram.totalGB} GB`
+            : "--";
+
+    document.getElementById("ramSpeed").textContent =
+        data.ram?.speedMHz
+            ? `Speed: ${data.ram.speedMHz} MHz`
+            : "Speed: --";
+
+
+    if (data.storage && data.storage.length > 0) {
+
+        const disk = data.storage[0];
+
+        document.getElementById("storageSize").textContent =
+            disk.sizeGB
+                ? `${disk.sizeGB} GB`
+                : "--";
+
+        document.getElementById("storageHealth").textContent =
+            disk.health !== null &&
+            disk.health !== undefined
+                ? `Health: ${disk.health}%`
+                : "Health: unavailable";
+    }
+}
+
+
+async function loadSystem() {
+
+    try {
+
+        const data = await api("/api/system");
+
+        renderSystem(data);
+
+    } catch (error) {
+
+        alert(
+            "Unable to connect to hardware agent."
+        );
+    }
+}
+
+
+// --------------------------------------------------
+// BATTERY
+// --------------------------------------------------
+
+function renderBattery(data) {
+
+    const percent =
+        Number(data.percent) || 0;
+
+    document.getElementById("batteryPercent").textContent =
+        `${percent}%`;
+
+    document.getElementById("batteryBig").textContent =
+        `${percent}%`;
+
+    document.getElementById("batteryBar").style.width =
+        `${Math.min(percent, 100)}%`;
+
+    document.getElementById("chargingStatus").textContent =
+        data.charging
+            ? "Currently charging"
+            : "Not charging";
+
+
+    document.getElementById("batteryModel").textContent =
+        data.model || "Unavailable";
+
+    document.getElementById("designCapacity").textContent =
+        data.designCapacityWh
+            ? `${data.designCapacityWh} Wh`
+            : "Unavailable";
+
+    document.getElementById("fullCapacity").textContent =
+        data.fullChargeCapacityWh
+            ? `${data.fullChargeCapacityWh} Wh`
+            : "Unavailable";
+
+    document.getElementById("currentCapacity").textContent =
+        data.currentCapacityWh
+            ? `${data.currentCapacityWh} Wh`
+            : "Unavailable";
+
+
+    let health = data.health;
+
+    if (
+        health === null ||
+        health === undefined
+    ) {
+
+        health = "--";
+
+    } else {
+
+        health = Math.round(health);
+
+    }
+
+    document.getElementById("batteryHealth").textContent =
+        `Health: ${health}%`;
+
+    document.getElementById("batteryHealthBig").textContent =
+        health === "--"
+            ? "--"
+            : `${health}%`;
+
+    document.getElementById("healthScore").textContent =
+        health === "--"
+            ? "--"
+            : health;
+}
+
+
+async function loadBattery() {
+
+    try {
+
+        const data = await api("/api/battery");
+
+        renderBattery(data);
+
+    } catch (error) {
+
+        alert(
+            "Battery information is unavailable."
+        );
+    }
+}
+
+
+// --------------------------------------------------
+// CAMERA
+// --------------------------------------------------
+
+async function startCamera() {
+
+    try {
+
+        cameraStream =
+            await navigator.mediaDevices.getUserMedia({
+                video: {
+                    width: {
+                        ideal: 1920
+                    },
+                    height: {
+                        ideal: 1080
+                    }
+                }
+            });
+
+        const video =
+            document.getElementById("cameraVideo");
+
+        video.srcObject =
+            cameraStream;
+
+    } catch (error) {
+
+        alert(
+            "Camera access was denied or no camera was found."
+        );
+    }
+}
+
+
+function capturePhoto() {
+
+    const video =
+        document.getElementById("cameraVideo");
+
+    const canvas =
+        document.getElementById("cameraCanvas");
+
+    if (!cameraStream) {
+
+        alert("Start the camera first.");
+
+        return;
+    }
+
+    canvas.width =
+        video.videoWidth;
+
+    canvas.height =
+        video.videoHeight;
+
+    const context =
+        canvas.getContext("2d");
+
+    context.drawImage(
+        video,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+    const image =
+        canvas.toDataURL(
+            "image/jpeg",
+            .95
+        );
+
+    const download =
+        document.getElementById("downloadPhoto");
+
+    download.href =
+        image;
+
+    download.style.display =
+        "block";
+}
+
+
+// --------------------------------------------------
+// MICROPHONE
+// --------------------------------------------------
+
+async function startMic() {
+
+    try {
+
+        micStream =
+            await navigator.mediaDevices.getUserMedia({
+                audio: true
+            });
+
+        const audioContext =
+            new (
+                window.AudioContext ||
+                window.webkitAudioContext
+            )();
+
+        const source =
+            audioContext.createMediaStreamSource(
+                micStream
+            );
+
+        const analyser =
+            audioContext.createAnalyser();
+
+        analyser.fftSize = 256;
+
+        source.connect(analyser);
+
+        const data =
+            new Uint8Array(
+                analyser.frequencyBinCount
+            );
+
+        function updateMeter() {
+
+            analyser.getByteFrequencyData(data);
+
+            let total = 0;
+
+            for (let i = 0; i < data.length; i++) {
+                total += data[i];
+            }
+
+            const average =
+                total / data.length;
+
+            const level =
+                Math.min(
+                    100,
+                    average * 2
+                );
+
+            document.getElementById(
+                "micLevel"
+            ).style.width =
+                `${level}%`;
+
+            requestAnimationFrame(
+                updateMeter
+            );
+        }
+
+        updateMeter();
+
+    } catch (error) {
+
+        alert(
+            "Microphone access was denied or unavailable."
+        );
+    }
+}
+
+
+function startRecording() {
+
+    if (!micStream) {
+
+        alert(
+            "Start the microphone first."
+        );
+
+        return;
+    }
+
+    recordedChunks = [];
+
+    mediaRecorder =
+        new MediaRecorder(
+            micStream
+        );
+
+    mediaRecorder.ondataavailable =
+        event => {
+
+            if (event.data.size > 0) {
+                recordedChunks.push(
+                    event.data
+                );
+            }
+        };
+
+    mediaRecorder.onstop =
+        () => {
+
+            const blob =
+                new Blob(
+                    recordedChunks,
+                    {
+                        type: "audio/webm"
+                    }
+                );
+
+            const url =
+                URL.createObjectURL(
+                    blob
+                );
+
+            document.getElementById(
+                "recording"
+            ).src = url;
+        };
+
+    mediaRecorder.start();
+
+}
+
+
+function stopRecording() {
+
+    if (
+        mediaRecorder &&
+        mediaRecorder.state !== "inactive"
+    ) {
+
+        mediaRecorder.stop();
+    }
+}
+
+
+// --------------------------------------------------
+// SOUND
+// --------------------------------------------------
+
+function playTone(channel) {
+
+    const context =
+        new (
+            window.AudioContext ||
+            window.webkitAudioContext
+        )();
+
+    const oscillator =
+        context.createOscillator();
+
+    const gain =
+        context.createGain();
+
+    oscillator.connect(gain);
+
+    gain.connect(
+        context.destination
+    );
+
+    let frequency = 440;
+
+    if (channel === "bass") {
+        frequency = 80;
+    }
+
+    oscillator.frequency.value =
+        frequency;
+
+    gain.gain.value =
+        0.25;
+
+    oscillator.start();
+
+    setTimeout(() => {
+
+        gain.gain.exponentialRampToValueAtTime(
+            0.001,
+            context.currentTime + .15
+        );
+
+        oscillator.stop(
+            context.currentTime + .2
+        );
+
+        context.close();
+
+    }, 700);
+}
+
+
+// --------------------------------------------------
+// DISPLAY
+// --------------------------------------------------
+
+function displayColor(color) {
+
+    const test =
+        document.getElementById(
+            "displayTest"
+        );
+
+    test.style.position =
+        "fixed";
+
+    test.style.inset =
+        "0";
+
+    test.style.zIndex =
+        "9999";
+
+    test.style.background =
+        color;
+
+    test.style.display =
+        "flex";
+
+    test.style.alignItems =
+        "center";
+
+    test.style.justifyContent =
+        "center";
+
+    test.innerHTML = `
+        <button
+            onclick="closeDisplayTest()"
+            style="
+                padding:15px 25px;
+                border-radius:10px;
+                background:#2563eb;
+                color:white;
+                font-weight:bold;
+            "
+        >
+            EXIT DISPLAY TEST
+        </button>
+    `;
+}
+
+
+function closeDisplayTest() {
+
+    window.location.reload();
+}
+
+
+// --------------------------------------------------
+// SPEED
+// --------------------------------------------------
+
+function runSpeedTest() {
+
+    const connection =
+        navigator.connection ||
+        navigator.mozConnection ||
+        navigator.webkitConnection;
+
+    if (connection) {
+
+        document.getElementById(
+            "networkType"
+        ).textContent =
+            connection.effectiveType ||
+            "Unknown";
+
+        document.getElementById(
+            "networkSpeed"
+        ).textContent =
+            connection.downlink
+                ? `${connection.downlink} Mbps`
+                : "Unavailable";
+
+    } else {
+
+        document.getElementById(
+            "networkType"
+        ).textContent =
+            "Unavailable";
+
+        document.getElementById(
+            "networkSpeed"
+        ).textContent =
+            "Unavailable";
+    }
+
+    api("/api/system")
+        .then(data => {
+
+            document.getElementById(
+                "speedRam"
+            ).textContent =
+                data.ram?.speedMHz
+                    ? `${data.ram.speedMHz} MHz`
+                    : "--";
+
+        })
+        .catch(() => {});
+}
+
+
+// --------------------------------------------------
+// PORTS
+// --------------------------------------------------
+
+function renderPorts(data) {
+
+    const container =
+        document.getElementById(
+            "portsList"
+        );
+
+    if (
+        !data.devices ||
+        data.devices.length === 0
+    ) {
+
+        container.innerHTML =
+            `<div class="port-item">
+                <b>No external devices detected</b>
+                <span>Scan completed</span>
+             </div>`;
+
+        return;
+    }
+
+    container.innerHTML =
+        data.devices.map(device => {
+
+            return `
+                <div class="port-item">
+                    <b>
+                        ${escapeHTML(
+                            device.name || "Unknown Device"
+                        )}
+                    </b>
+
+                    <span>
+                        ${escapeHTML(
+                            device.type || "Unknown"
+                        )}
+                    </span>
+                </div>
+            `;
+
+        }).join("");
+}
+
+
+async function loadPorts() {
+
+    try {
+
+        const data =
+            await api("/api/ports");
+
+        renderPorts(data);
+
+    } catch (error) {
+
+        document.getElementById(
+            "portsList"
+        ).innerHTML =
+            `<div class="port-item">
+                <b>Hardware agent unavailable</b>
+                <span>Offline</span>
+             </div>`;
+    }
+}
+
+
+// --------------------------------------------------
+// SECURITY
+// --------------------------------------------------
+
+function escapeHTML(value) {
+
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
+
+// --------------------------------------------------
+// INITIAL LOAD
+// --------------------------------------------------
+
+window.addEventListener(
+    "DOMContentLoaded",
+    () => {
+
+        loadAllData();
+
+        // Refresh hardware information
+        // every 10 seconds while dashboard
+        // remains open.
+
+        setInterval(
+            loadAllData,
+            10000
+        );
+    }
+);
