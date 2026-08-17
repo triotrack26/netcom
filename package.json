@@ -1,0 +1,13 @@
+{
+  "name": "laptop-analyzer",
+  "version": "1.0.0",
+  "description": "Windows laptop hardware diagnostic analyzer",
+  "main": "agent/server.js",
+  "scripts": {
+    "start": "node agent/server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "systeminformation": "^5.27.11"
+  }
+}
