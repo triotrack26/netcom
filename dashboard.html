@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#2563eb">
 
     <title>Laptop Analyzer Dashboard</title>
 
@@ -14,92 +15,110 @@
 
 <div class="app">
 
+    <!-- SIDEBAR -->
+
     <aside class="sidebar">
 
         <div class="brand">
-            <div class="logo small">LA</div>
 
-            <div>
+            <div class="brand-logo small">
+                LA
+            </div>
+
+            <div class="brand-name">
                 <strong>Laptop</strong>
                 <span>Analyzer</span>
             </div>
+
         </div>
 
         <nav>
 
-            <button class="nav-item active" onclick="showPage('overview', this)">
+            <button class="nav-button active" data-page="overview">
                 <span>▦</span>
                 Overview
             </button>
 
-            <button class="nav-item" onclick="showPage('system', this)">
+            <button class="nav-button" data-page="system">
                 <span>▣</span>
                 System Info
             </button>
 
-            <button class="nav-item" onclick="showPage('battery', this)">
+            <button class="nav-button" data-page="battery">
                 <span>▰</span>
                 Battery
             </button>
 
-            <button class="nav-item" onclick="showPage('camera', this)">
+            <button class="nav-button" data-page="camera">
                 <span>◉</span>
                 Camera
             </button>
 
-            <button class="nav-item" onclick="showPage('microphone', this)">
+            <button class="nav-button" data-page="microphone">
                 <span>◌</span>
                 Microphone
             </button>
 
-            <button class="nav-item" onclick="showPage('sound', this)">
+            <button class="nav-button" data-page="sound">
                 <span>♪</span>
                 Sound
             </button>
 
-            <button class="nav-item" onclick="showPage('display', this)">
+            <button class="nav-button" data-page="display">
                 <span>▤</span>
                 Display
             </button>
 
-            <button class="nav-item" onclick="showPage('speed', this)">
+            <button class="nav-button" data-page="speed">
                 <span>↯</span>
                 Speed
             </button>
 
-            <button class="nav-item" onclick="showPage('ports', this)">
+            <button class="nav-button" data-page="ports">
                 <span>⬡</span>
                 Ports
             </button>
 
         </nav>
 
-        <div class="sidebar-bottom">
-            <div class="agent-status">
-                <span id="agentDot" class="status-dot red"></span>
-                <span id="agentStatus">Agent offline</span>
-            </div>
+        <div class="sidebar-footer">
+
+            <span class="online-dot"></span>
+
+            <span>
+                GitHub Pages
+            </span>
+
         </div>
 
     </aside>
 
+
+    <!-- MAIN -->
 
     <main class="main">
 
         <header class="topbar">
 
             <div>
-                <h2 id="pageTitle">Machine Overview</h2>
-                <p id="machineName">Detecting machine...</p>
+                <h2 id="pageTitle">
+                    Machine Overview
+                </h2>
+
+                <p id="machineStatus">
+                    Browser diagnostic mode
+                </p>
             </div>
 
-            <div class="top-actions">
+            <div class="top-right">
 
-                <span id="lastUpdated">
-                    Waiting for data...
+                <span id="updatedText">
+                    Updating...
                 </span>
 
-                <button class="refresh-btn" onclick="loadAllData()">
+                <button
+                    class="refresh-button"
+                    id="refreshButton">
                     ↻ Refresh
                 </button>
 
@@ -108,60 +127,120 @@
         </header>
 
 
-        <!-- OVERVIEW -->
+        <!-- ================= OVERVIEW ================= -->
 
-        <section id="overview" class="page active-page">
+        <section
+            class="page active"
+            id="page-overview">
 
-            <div class="hero">
+            <div class="hero-card">
 
                 <div>
-                    <span class="eyebrow">MACHINE DIAGNOSTICS</span>
 
-                    <h1 id="overviewModel">
-                        Detecting machine...
+                    <span class="eyebrow">
+                        LAPTOP DIAGNOSTICS
+                    </span>
+
+                    <h1 id="overviewDevice">
+                        Browser Diagnostic
                     </h1>
 
-                    <p id="overviewOS">
-                        Please wait while hardware information is collected.
+                    <p id="overviewBrowser">
+                        Collecting available machine information...
                     </p>
+
                 </div>
 
                 <div class="health-circle">
-                    <strong id="healthScore">--</strong>
-                    <span>Health</span>
+
+                    <strong id="healthScore">
+                        --
+                    </strong>
+
+                    <span>
+                        Score
+                    </span>
+
                 </div>
 
             </div>
 
 
-            <div class="cards">
+            <div class="summary-grid">
 
-                <div class="info-card">
-                    <div class="card-icon blue">CPU</div>
+                <div class="summary-card">
+
+                    <div class="summary-icon blue">
+                        CPU
+                    </div>
+
                     <span>Processor</span>
-                    <strong id="cpuName">--</strong>
-                    <small id="cpuTemp">Temperature: --</small>
+
+                    <strong id="overviewCpu">
+                        Browser detected
+                    </strong>
+
+                    <small id="overviewCpuStatus">
+                        Detailed CPU temperature unavailable
+                    </small>
+
                 </div>
 
-                <div class="info-card">
-                    <div class="card-icon purple">RAM</div>
+
+                <div class="summary-card">
+
+                    <div class="summary-icon purple">
+                        RAM
+                    </div>
+
                     <span>Memory</span>
-                    <strong id="ramSize">--</strong>
-                    <small id="ramSpeed">Speed: --</small>
+
+                    <strong id="overviewRam">
+                        --
+                    </strong>
+
+                    <small>
+                        Browser-reported
+                    </small>
+
                 </div>
 
-                <div class="info-card">
-                    <div class="card-icon green">SSD</div>
-                    <span>Storage</span>
-                    <strong id="storageSize">--</strong>
-                    <small id="storageHealth">Health: --</small>
-                </div>
 
-                <div class="info-card">
-                    <div class="card-icon orange">BAT</div>
+                <div class="summary-card">
+
+                    <div class="summary-icon green">
+                        BAT
+                    </div>
+
                     <span>Battery</span>
-                    <strong id="batteryPercent">--</strong>
-                    <small id="batteryHealth">Health: --</small>
+
+                    <strong id="overviewBattery">
+                        --
+                    </strong>
+
+                    <small id="overviewCharging">
+                        Checking...
+                    </small>
+
+                </div>
+
+
+                <div class="summary-card">
+
+                    <div class="summary-icon orange">
+                        DSP
+                    </div>
+
+                    <span>Display</span>
+
+                    <strong id="overviewDisplay">
+                        --
+                    </strong>
+
+                    <small>
+                        Current browser viewport
+                    </small>
+
                 </div>
 
             </div>
@@ -169,134 +248,176 @@
 
             <div class="section-card">
 
-                <div class="section-header">
+                <div class="section-heading">
+
                     <div>
                         <h3>Diagnostic Modules</h3>
-                        <p>Run individual machine tests</p>
+                        <p>
+                            Select a test to inspect the machine.
+                        </p>
                     </div>
+
                 </div>
+
 
                 <div class="module-grid">
 
-                    <button onclick="showPage('system')">
-                        <b>System Info</b>
-                        <span>Hardware identification</span>
+                    <button class="module-button" data-open="system">
+                        <strong>System Info</strong>
+                        <span>Browser-visible system information</span>
                     </button>
 
-                    <button onclick="showPage('battery')">
-                        <b>Battery</b>
-                        <span>Capacity and health</span>
+                    <button class="module-button" data-open="battery">
+                        <strong>Battery</strong>
+                        <span>Charge and battery status</span>
                     </button>
 
-                    <button onclick="showPage('camera')">
-                        <b>Camera</b>
-                        <span>Camera and photo test</span>
+                    <button class="module-button" data-open="camera">
+                        <strong>Camera</strong>
+                        <span>Camera preview and photo capture</span>
                     </button>
 
-                    <button onclick="showPage('microphone')">
-                        <b>Microphone</b>
-                        <span>Recording test</span>
+                    <button class="module-button" data-open="microphone">
+                        <strong>Microphone</strong>
+                        <span>Microphone level and recording</span>
                     </button>
 
-                    <button onclick="showPage('sound')">
-                        <b>Sound</b>
-                        <span>Speaker channel test</span>
+                    <button class="module-button" data-open="sound">
+                        <strong>Sound</strong>
+                        <span>Left, right, stereo and bass</span>
                     </button>
 
-                    <button onclick="showPage('display')">
-                        <b>Display</b>
-                        <span>Screen test</span>
+                    <button class="module-button" data-open="display">
+                        <strong>Display</strong>
+                        <span>Color and screen tests</span>
                     </button>
 
-                    <button onclick="showPage('speed')">
-                        <b>Speed</b>
-                        <span>Network performance</span>
+                    <button class="module-button" data-open="speed">
+                        <strong>Speed</strong>
+                        <span>Network and browser tests</span>
                     </button>
 
-                    <button onclick="showPage('ports')">
-                        <b>Ports</b>
-                        <span>USB device detection</span>
+                    <button class="module-button" data-open="ports">
+                        <strong>Ports</strong>
+                        <span>Browser-supported USB detection</span>
                     </button>
 
                 </div>
 
             </div>
 
+
+            <div class="notice-card">
+
+                <strong>Browser-only mode</strong>
+
+                <p>
+                    Protected hardware values such as motherboard serial,
+                    SSD SMART health, CPU temperature and exact RAM hardware
+                    details cannot be read by a normal GitHub Pages website.
+                    The analyzer marks those values unavailable instead of
+                    showing incorrect information.
+                </p>
+
+            </div>
+
         </section>
 
 
-        <!-- SYSTEM -->
+        <!-- ================= SYSTEM ================= -->
 
-        <section id="system" class="page">
+        <section
+            class="page"
+            id="page-system">
 
             <div class="section-card">
 
-                <div class="section-header">
+                <div class="section-heading">
+
                     <div>
                         <h3>System Information</h3>
-                        <p>Detailed machine hardware information</p>
+                        <p>
+                            Information available through browser APIs.
+                        </p>
                     </div>
 
-                    <button class="refresh-btn" onclick="loadSystem()">
-                        Refresh
-                    </button>
+                    <span class="live-badge">
+                        LIVE
+                    </span>
+
                 </div>
 
-                <div class="detail-grid">
 
-                    <div class="detail">
-                        <span>Manufacturer</span>
-                        <strong id="manufacturer">--</strong>
-                    </div>
+                <div class="details-grid">
 
-                    <div class="detail">
-                        <span>Model</span>
-                        <strong id="model">--</strong>
-                    </div>
-
-                    <div class="detail">
-                        <span>System Serial</span>
-                        <strong id="serial">--</strong>
-                    </div>
-
-                    <div class="detail">
-                        <span>Motherboard</span>
-                        <strong id="motherboard">--</strong>
-                    </div>
-
-                    <div class="detail">
-                        <span>CPU</span>
-                        <strong id="systemCPU">--</strong>
-                    </div>
-
-                    <div class="detail">
-                        <span>RAM</span>
-                        <strong id="systemRAM">--</strong>
-                    </div>
-
-                    <div class="detail">
-                        <span>RAM Speed</span>
-                        <strong id="systemRAMSpeed">--</strong>
-                    </div>
-
-                    <div class="detail">
+                    <div class="detail-item">
                         <span>Operating System</span>
-                        <strong id="os">--</strong>
+                        <strong id="systemOs">--</strong>
                     </div>
 
-                    <div class="detail">
-                        <span>OS Build</span>
-                        <strong id="osBuild">--</strong>
+                    <div class="detail-item">
+                        <span>Browser</span>
+                        <strong id="systemBrowser">--</strong>
                     </div>
 
-                    <div class="detail">
-                        <span>Display Resolution</span>
-                        <strong id="resolution">--</strong>
+                    <div class="detail-item">
+                        <span>Platform</span>
+                        <strong id="systemPlatform">--</strong>
                     </div>
 
-                    <div class="detail">
+                    <div class="detail-item">
+                        <span>CPU Logical Cores</span>
+                        <strong id="systemCores">--</strong>
+                    </div>
+
+                    <div class="detail-item">
+                        <span>Approx. RAM</span>
+                        <strong id="systemRam">--</strong>
+                    </div>
+
+                    <div class="detail-item">
+                        <span>Screen Resolution</span>
+                        <strong id="systemResolution">--</strong>
+                    </div>
+
+                    <div class="detail-item">
+                        <span>Available Screen</span>
+                        <strong id="systemAvailableScreen">--</strong>
+                    </div>
+
+                    <div class="detail-item">
+                        <span>Device Pixel Ratio</span>
+                        <strong id="systemPixelRatio">--</strong>
+                    </div>
+
+                    <div class="detail-item">
+                        <span>Color Depth</span>
+                        <strong id="systemColorDepth">--</strong>
+                    </div>
+
+                    <div class="detail-item">
+                        <span>Online Status</span>
+                        <strong id="systemOnline">--</strong>
+                    </div>
+
+                    <div class="detail-item unavailable">
+                        <span>Motherboard Serial</span>
+                        <strong>Not available in browser</strong>
+                    </div>
+
+                    <div class="detail-item unavailable">
+                        <span>SSD SMART Health</span>
+                        <strong>Not available in browser</strong>
+                    </div>
+
+                    <div class="detail-item unavailable">
                         <span>CPU Temperature</span>
-                        <strong id="systemTemp">--</strong>
+                        <strong>Not available in browser</strong>
+                    </div>
+
+                    <div class="detail-item unavailable">
+                        <span>Exact RAM Speed</span>
+                        <strong>Not available in browser</strong>
                     </div>
 
                 </div>
@@ -306,62 +427,91 @@
         </section>
 
 
-        <!-- BATTERY -->
+        <!-- ================= BATTERY ================= -->
 
-        <section id="battery" class="page">
+        <section
+            class="page"
+            id="page-battery">
 
             <div class="section-card">
 
-                <div class="section-header">
+                <div class="section-heading">
+
                     <div>
                         <h3>Battery Diagnostic</h3>
-                        <p>Battery capacity and charging information</p>
+                        <p>
+                            Browser-supported battery information.
+                        </p>
                     </div>
 
-                    <button class="refresh-btn" onclick="loadBattery()">
-                        Refresh
-                    </button>
-                </div>
-
-                <div class="battery-main">
-
-                    <div class="battery-percent">
-                        <strong id="batteryBig">--%</strong>
-                        <span id="chargingStatus">--</span>
-                    </div>
-
-                    <div class="battery-bar">
-                        <div id="batteryBar"></div>
-                    </div>
+                    <span class="live-badge">
+                        LIVE
+                    </span>
 
                 </div>
 
 
-                <div class="detail-grid">
+                <div class="battery-display">
 
-                    <div class="detail">
-                        <span>Battery Model</span>
-                        <strong id="batteryModel">--</strong>
+                    <div class="battery-number">
+
+                        <strong id="batteryPercent">
+                            --
+                        </strong>
+
+                        <span id="batteryState">
+                            Checking battery...
+                        </span>
+
                     </div>
 
-                    <div class="detail">
+                    <div class="battery-track">
+                        <div id="batteryFill"></div>
+                    </div>
+
+                </div>
+
+
+                <div class="details-grid">
+
+                    <div class="detail-item">
+                        <span>Charge Level</span>
+                        <strong id="batteryLevel">--</strong>
+                    </div>
+
+                    <div class="detail-item">
+                        <span>Charging</span>
+                        <strong id="batteryCharging">--</strong>
+                    </div>
+
+                    <div class="detail-item">
+                        <span>Charging Time</span>
+                        <strong id="batteryChargingTime">--</strong>
+                    </div>
+
+                    <div class="detail-item">
+                        <span>Discharging Time</span>
+                        <strong id="batteryDischargingTime">--</strong>
+                    </div>
+
+                    <div class="detail-item unavailable">
                         <span>Design Capacity</span>
-                        <strong id="designCapacity">--</strong>
+                        <strong>Not available in browser</strong>
                     </div>
 
-                    <div class="detail">
-                        <span>Full Charge Capacity</span>
-                        <strong id="fullCapacity">--</strong>
+                    <div class="detail-item unavailable">
+                        <span>Battery Model</span>
+                        <strong>Not available in browser</strong>
                     </div>
 
-                    <div class="detail">
-                        <span>Current Capacity</span>
-                        <strong id="currentCapacity">--</strong>
+                    <div class="detail-item unavailable">
+                        <span>Cycle Count</span>
+                        <strong>Not available in browser</strong>
                     </div>
 
-                    <div class="detail">
-                        <span>Battery Health</span>
-                        <strong id="batteryHealthBig">--</strong>
+                    <div class="detail-item unavailable">
+                        <span>Exact Battery Health</span>
+                        <strong>Not available in browser</strong>
                     </div>
 
                 </div>
@@ -371,42 +521,92 @@
         </section>
 
 
-        <!-- CAMERA -->
+        <!-- ================= CAMERA ================= -->
 
-        <section id="camera" class="page">
+        <section
+            class="page"
+            id="page-camera">
 
             <div class="section-card">
 
-                <div class="section-header">
+                <div class="section-heading">
+
                     <div>
                         <h3>Camera Test</h3>
-                        <p>Test webcam and capture an image</p>
+                        <p>
+                            Test the webcam and capture an image.
+                        </p>
                     </div>
+
+                    <span
+                        class="test-status"
+                        id="cameraStatus">
+                        NOT TESTED
+                    </span>
+
                 </div>
 
-                <div class="camera-box">
 
-                    <video id="cameraVideo" autoplay playsinline></video>
+                <div class="camera-container">
 
-                    <canvas id="cameraCanvas"></canvas>
+                    <video
+                        id="cameraVideo"
+                        autoplay
+                        playsinline>
+                    </video>
+
+                    <canvas
+                        id="cameraCanvas">
+                    </canvas>
+
+                    <div
+                        class="camera-placeholder"
+                        id="cameraPlaceholder">
+
+                        <div class="camera-placeholder-icon">
+                            ◉
+                        </div>
+
+                        <strong>
+                            Camera not started
+                        </strong>
+
+                        <span>
+                            Click Start Camera
+                        </span>
+
+                    </div>
 
                 </div>
 
-                <div class="test-controls">
 
-                    <button class="primary-btn" onclick="startCamera()">
+                <div class="button-row">
+
+                    <button
+                        class="primary-button"
+                        id="startCamera">
                         Start Camera
                     </button>
 
-                    <button class="secondary-btn" onclick="capturePhoto()">
+                    <button
+                        class="secondary-button"
+                        id="capturePhoto">
                         Capture Image
+                    </button>
+
+                    <button
+                        class="danger-button"
+                        id="stopCamera">
+                        Stop Camera
                     </button>
 
                 </div>
 
-                <a id="downloadPhoto"
-                   class="download-link"
-                   download="laptop-camera-test.jpg">
+
+                <a
+                    id="photoDownload"
+                    class="download-link"
+                    download="laptop-camera-test.jpg">
                     Download Captured Image
                 </a>
 
@@ -415,77 +615,163 @@
         </section>
 
 
-        <!-- MICROPHONE -->
+        <!-- ================= MICROPHONE ================= -->
 
-        <section id="microphone" class="page">
+        <section
+            class="page"
+            id="page-microphone">
 
             <div class="section-card">
 
-                <div class="section-header">
+                <div class="section-heading">
+
                     <div>
                         <h3>Microphone Test</h3>
-                        <p>Check microphone input and record voice</p>
+                        <p>
+                            Test microphone input and record voice.
+                        </p>
                     </div>
+
+                    <span
+                        class="test-status"
+                        id="micStatus">
+                        NOT TESTED
+                    </span>
+
                 </div>
 
-                <div class="mic-meter">
-                    <div id="micLevel"></div>
+
+                <div class="mic-test-box">
+
+                    <div class="mic-level-track">
+                        <div id="micLevel"></div>
+                    </div>
+
+                    <div class="mic-value">
+                        <span>
+                            Input level
+                        </span>
+
+                        <strong id="micValue">
+                            0%
+                        </strong>
+                    </div>
+
                 </div>
 
-                <div class="test-controls">
 
-                    <button class="primary-btn" onclick="startMic()">
+                <div class="button-row">
+
+                    <button
+                        class="primary-button"
+                        id="startMic">
                         Start Microphone
                     </button>
 
-                    <button class="secondary-btn" onclick="startRecording()">
-                        Record
+                    <button
+                        class="secondary-button"
+                        id="startRecording">
+                        Start Recording
                     </button>
 
-                    <button class="danger-btn" onclick="stopRecording()">
-                        Stop
+                    <button
+                        class="danger-button"
+                        id="stopRecording">
+                        Stop Recording
                     </button>
 
                 </div>
 
-                <audio id="recording" controls></audio>
+
+                <audio
+                    id="recordingAudio"
+                    controls>
+                </audio>
 
             </div>
 
         </section>
 
 
-        <!-- SOUND -->
+        <!-- ================= SOUND ================= -->
 
-        <section id="sound" class="page">
+        <section
+            class="page"
+            id="page-sound">
 
             <div class="section-card">
 
-                <div class="section-header">
+                <div class="section-heading">
+
                     <div>
-                        <h3>Speaker Test</h3>
-                        <p>Test left, right, stereo and bass</p>
+                        <h3>Sound Test</h3>
+                        <p>
+                            Test the speaker channels.
+                        </p>
                     </div>
+
                 </div>
 
-                <div class="sound-buttons">
 
-                    <button onclick="playTone('left')">
-                        LEFT
+                <div class="sound-grid">
+
+                    <button
+                        class="sound-button"
+                        data-sound="left">
+
+                        <strong>LEFT</strong>
+
+                        <span>
+                            Left channel
+                        </span>
+
                     </button>
 
-                    <button onclick="playTone('right')">
-                        RIGHT
+
+                    <button
+                        class="sound-button"
+                        data-sound="right">
+
+                        <strong>RIGHT</strong>
+
+                        <span>
+                            Right channel
+                        </span>
+
                     </button>
 
-                    <button onclick="playTone('both')">
-                        BOTH
+
+                    <button
+                        class="sound-button"
+                        data-sound="both">
+
+                        <strong>BOTH</strong>
+
+                        <span>
+                            Stereo
+                        </span>
+
                     </button>
 
-                    <button onclick="playTone('bass')">
-                        DEEP BASS
+
+                    <button
+                        class="sound-button bass"
+                        data-sound="bass">
+
+                        <strong>BASS</strong>
+
+                        <span>
+                            Deep bass
+                        </span>
+
                     </button>
 
+                </div>
+
+
+                <div class="sound-note">
+                    Set your laptop volume to a comfortable level
+                    before testing.
                 </div>
 
             </div>
@@ -493,86 +779,170 @@
         </section>
 
 
-        <!-- DISPLAY -->
+        <!-- ================= DISPLAY ================= -->
 
-        <section id="display" class="page">
+        <section
+            class="page"
+            id="page-display">
 
             <div class="section-card">
 
-                <div class="section-header">
+                <div class="section-heading">
+
                     <div>
                         <h3>Display Test</h3>
-                        <p>Check display colors and pixels</p>
+                        <p>
+                            Check screen colors and visible pixel defects.
+                        </p>
                     </div>
+
                 </div>
 
-                <div id="displayTest" class="display-test">
 
-                    <button onclick="displayColor('#ffffff')">
+                <div class="display-buttons">
+
+                    <button data-color="#ffffff">
                         WHITE
                     </button>
 
-                    <button onclick="displayColor('#000000')">
+                    <button data-color="#000000">
                         BLACK
                     </button>
 
-                    <button onclick="displayColor('#ff0000')">
+                    <button data-color="#ff0000">
                         RED
                     </button>
 
-                    <button onclick="displayColor('#00ff00')">
+                    <button data-color="#00ff00">
                         GREEN
                     </button>
 
-                    <button onclick="displayColor('#0000ff')">
+                    <button data-color="#0000ff">
                         BLUE
                     </button>
 
-                    <button onclick="displayColor('#808080')">
+                    <button data-color="#808080">
                         GREY
                     </button>
 
                 </div>
 
+
+                <button
+                    class="primary-button display-fullscreen"
+                    id="fullscreenDisplay">
+                    Fullscreen Display Test
+                </button>
+
+                <div class="display-instruction">
+                    Look carefully for dead pixels, stuck pixels,
+                    uneven colors and backlight problems.
+                </div>
+
             </div>
 
         </section>
 
 
-        <!-- SPEED -->
+        <!-- ================= SPEED ================= -->
 
-        <section id="speed" class="page">
+        <section
+            class="page"
+            id="page-speed">
 
             <div class="section-card">
 
-                <div class="section-header">
+                <div class="section-heading">
+
                     <div>
-                        <h3>Speed Test</h3>
-                        <p>Network and memory information</p>
+                        <h3>Speed & Network</h3>
+                        <p>
+                            Browser-visible network information.
+                        </p>
                     </div>
 
-                    <button class="refresh-btn" onclick="runSpeedTest()">
-                        Run Test
+                    <button
+                        class="refresh-button"
+                        id="speedRefresh">
+                        Test
                     </button>
+
                 </div>
+
 
                 <div class="speed-grid">
 
                     <div class="speed-card">
-                        <span>Network Type</span>
-                        <strong id="networkType">--</strong>
+
+                        <span>
+                            Connection
+                        </span>
+
+                        <strong id="connectionType">
+                            --
+                        </strong>
+
                     </div>
+
 
                     <div class="speed-card">
-                        <span>Browser Downlink</span>
-                        <strong id="networkSpeed">--</strong>
+
+                        <span>
+                            Estimated Downlink
+                        </span>
+
+                        <strong id="downlink">
+                            --
+                        </strong>
+
                     </div>
+
 
                     <div class="speed-card">
-                        <span>RAM Speed</span>
-                        <strong id="speedRam">--</strong>
+
+                        <span>
+                            Effective Type
+                        </span>
+
+                        <strong id="effectiveType">
+                            --
+                        </strong>
+
                     </div>
 
+
+                    <div class="speed-card">
+
+                        <span>
+                            RTT
+                        </span>
+
+                        <strong id="networkRtt">
+                            --
+                        </strong>
+
+                    </div>
+
+
+                    <div class="speed-card">
+
+                        <span>
+                            Online
+                        </span>
+
+                        <strong id="networkOnline">
+                            --
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <div class="speed-warning">
+                    Browser network APIs provide an estimate.
+                    They are not equivalent to a full internet
+                    download/upload benchmark.
                 </div>
 
             </div>
@@ -580,25 +950,67 @@
         </section>
 
 
-        <!-- PORTS -->
+        <!-- ================= PORTS ================= -->
 
-        <section id="ports" class="page">
+        <section
+            class="page"
+            id="page-ports">
 
             <div class="section-card">
 
-                <div class="section-header">
+                <div class="section-heading">
+
                     <div>
                         <h3>Port & Device Detection</h3>
-                        <p>Connected external devices</p>
+                        <p>
+                            Detect USB devices when the browser supports
+                            WebUSB and the user grants permission.
+                        </p>
                     </div>
 
-                    <button class="refresh-btn" onclick="loadPorts()">
-                        Scan
+                    <button
+                        class="refresh-button"
+                        id="usbButton">
+                        Detect USB
                     </button>
+
                 </div>
 
-                <div id="portsList" class="ports-list">
-                    Scanning...
+
+                <div
+                    class="usb-status"
+                    id="usbStatus">
+
+                    USB device detection has not been started.
+
+                </div>
+
+
+                <div
+                    class="ports-list"
+                    id="portsList">
+
+                    <div class="port-item">
+
+                        <strong>
+                            Browser security
+                        </strong>
+
+                        <span>
+                            Complete USB/Thunderbolt/PCI port
+                            detection is not available to GitHub Pages.
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <div class="port-note">
+
+                    A browser cannot silently scan every physical port.
+                    WebUSB devices require explicit user permission.
+
                 </div>
 
             </div>
@@ -607,6 +1019,11 @@
 
     </main>
 
+</div>
+
+<div
+    id="toast"
+    class="toast">
 </div>
 
 <script src="app.js"></script>
