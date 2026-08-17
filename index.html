@@ -3,102 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Laptop Hardware Analyzer</title>
+    <meta http-equiv="refresh" content="0">
+    <title>Laptop Analyzer</title>
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
-    <div class="dashboard-container">
-        <nav class="sidebar">
-            <h2>DiagPro</h2>
-            <button class="tab-btn active" data-target="sysinfo">System Info</button>
-            <button class="tab-btn" data-target="battery">Battery</button>
-            <button class="tab-btn" data-target="camera">Camera</button>
-            <button class="tab-btn" data-target="mic">Microphone</button>
-            <button class="tab-btn" data-target="sound">Sound Test</button>
-            <button class="tab-btn" data-target="display">Display Test</button>
-            <button class="tab-btn" data-target="network">Network Speed</button>
-            <button class="tab-btn" data-target="ports">Port Detection</button>
-        </nav>
 
-        <main class="content">
-            <!-- System Info Section -->
-            <section id="sysinfo" class="tab-content active">
-                <h3>System Information</h3>
-                <div class="card-grid">
-                    <div class="card"><strong>OS/Browser:</strong> <span id="os-info">Loading...</span></div>
-                    <div class="card"><strong>Est. RAM:</strong> <span id="ram-info">Loading...</span></div>
-                    <div class="card"><strong>Logical Processors:</strong> <span id="cpu-info">Loading...</span></div>
-                    <div class="card"><strong>Screen Resolution:</strong> <span id="screen-info">Loading...</span></div>
-                </div>
-                <p class="note">* Note: Serial numbers, SSD health, and temps require native backend software.</p>
-            </section>
+<body class="landing">
 
-            <!-- Battery Section -->
-            <section id="battery" class="tab-content">
-                <h3>Battery Diagnostics</h3>
-                <div class="card-grid">
-                    <div class="card"><strong>Level:</strong> <span id="batt-level">Loading...</span></div>
-                    <div class="card"><strong>Charging:</strong> <span id="batt-charging">Loading...</span></div>
-                </div>
-            </section>
+    <div class="landing-card">
+        <div class="logo">LA</div>
 
-            <!-- Camera Section -->
-            <section id="camera" class="tab-content">
-                <h3>Camera Test</h3>
-                <button id="start-cam" class="action-btn">Start Camera</button>
-                <button id="snap-cam" class="action-btn" disabled>Capture Image</button>
-                <div class="media-container">
-                    <video id="cam-video" autoplay playsinline></video>
-                    <canvas id="cam-canvas"></canvas>
-                </div>
-            </section>
+        <h1>Laptop Analyzer</h1>
 
-            <!-- Mic Section -->
-            <section id="mic" class="tab-content">
-                <h3>Microphone Test</h3>
-                <button id="start-mic" class="action-btn">Start Recording</button>
-                <button id="stop-mic" class="action-btn" disabled>Stop Recording</button>
-                <div class="audio-playback">
-                    <audio id="mic-playback" controls></audio>
-                </div>
-            </section>
+        <p>
+            Professional laptop hardware diagnostic and testing system
+        </p>
 
-            <!-- Sound Section -->
-            <section id="sound" class="tab-content">
-                <h3>Audio Channel & Bass Test</h3>
-                <div class="button-group">
-                    <button id="test-left" class="action-btn">Test Left</button>
-                    <button id="test-right" class="action-btn">Test Right</button>
-                    <button id="test-both" class="action-btn">Test Both</button>
-                    <button id="test-bass" class="action-btn">Deep Bass (60Hz)</button>
-                </div>
-            </section>
+        <div class="status">
+            <span class="status-dot"></span>
+            Ready for machine diagnostics
+        </div>
 
-            <!-- Display Section -->
-            <section id="display" class="tab-content">
-                <h3>Display Dead Pixel Test</h3>
-                <p>Click the button below to enter full screen. Click anywhere on the screen to cycle through colors (Red, Green, Blue, White, Black) to check for dead pixels. Press ESC to exit.</p>
-                <button id="start-display" class="action-btn">Start Display Test</button>
-            </section>
+        <button class="primary-btn" onclick="startAnalyzer()">
+            Start Machine Check
+        </button>
 
-            <!-- Network Section -->
-            <section id="network" class="tab-content">
-                <h3>Network Estimation</h3>
-                <div class="card-grid">
-                    <div class="card"><strong>Downlink Estimate:</strong> <span id="net-downlink">Loading...</span></div>
-                    <div class="card"><strong>Connection Type:</strong> <span id="net-type">Loading...</span></div>
-                </div>
-            </section>
-
-            <!-- Ports Section -->
-            <section id="ports" class="tab-content">
-                <h3>USB Port Detection</h3>
-                <p>Browsers require user permission to scan external USB devices.</p>
-                <button id="scan-usb" class="action-btn">Scan for USB Devices</button>
-                <ul id="usb-list"></ul>
-            </section>
-        </main>
+        <div class="small-text">
+            System • Battery • Camera • Mic • Sound • Display • Speed • Ports
+        </div>
     </div>
-    <script src="app.js"></script>
+
+    <script>
+        function startAnalyzer() {
+            window.location.href = "dashboard.html";
+        }
+    </script>
+
 </body>
 </html>
