@@ -3,40 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="refresh" content="0">
+    <meta name="theme-color" content="#2563eb">
     <title>Laptop Analyzer</title>
     <link rel="stylesheet" href="style.css">
 </head>
 
-<body class="landing">
+<body class="landing-page">
 
-    <div class="landing-card">
-        <div class="logo">LA</div>
+    <div class="landing-container">
+
+        <div class="brand-logo">LA</div>
 
         <h1>Laptop Analyzer</h1>
 
-        <p>
-            Professional laptop hardware diagnostic and testing system
+        <p class="landing-description">
+            Professional laptop testing and diagnostic tools
+            running directly in your browser.
         </p>
 
-        <div class="status">
-            <span class="status-dot"></span>
-            Ready for machine diagnostics
+        <div class="browser-status">
+            <span class="online-dot"></span>
+            Browser diagnostic system ready
         </div>
 
-        <button class="primary-btn" onclick="startAnalyzer()">
+        <button class="primary-button" id="startButton">
             Start Machine Check
         </button>
 
-        <div class="small-text">
-            System • Battery • Camera • Mic • Sound • Display • Speed • Ports
+        <div class="feature-line">
+            System · Battery · Camera · Mic · Sound · Display · Speed · Ports
         </div>
+
+        <div class="browser-note">
+            No installation required
+        </div>
+
     </div>
 
     <script>
-        function startAnalyzer() {
+        document.getElementById("startButton").addEventListener("click", () => {
             window.location.href = "dashboard.html";
-        }
+        });
     </script>
 
 </body>
